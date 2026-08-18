@@ -3,47 +3,42 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>语料 · Agent · 模型 — 私有领域里的上下文工程</title>
+  <title>语料、Agent 与模型：私有领域中的上下文构造</title>
   <style>
     :root {
-      --bg: #12110e;
-      --bg-2: #1a1814;
-      --surface: #221f1a;
-      --line: rgba(232, 220, 196, 0.12);
-      --text: #efe6d4;
-      --muted: #b3a78e;
-      --faint: #7d7464;
-      --gold: #e3b341;
-      --copper: #d4883a;
-      --teal: #3dbead;
-      --violet: #9b8cff;
-      --danger: #e07a5f;
-      --shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
-      --serif: "Iowan Old Style", "Palatino Linotype", "Songti SC", "Source Han Serif SC", "Noto Serif SC", Georgia, serif;
-      --sans: "Avenir Next", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif;
-      --mono: "IBM Plex Mono", "SF Mono", "Cascadia Code", ui-monospace, monospace;
+      --bg: #f3f4f6;
+      --paper: #ffffff;
+      --ink: #1b1f24;
+      --muted: #4b5563;
+      --faint: #6b7280;
+      --line: #d5dbe3;
+      --navy: #1e3a5f;
+      --navy-2: #2c5282;
+      --fill: #eef2f6;
+      --fill-2: #e8eef5;
+      --sans: "Source Han Sans SC", "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", sans-serif;
+      --serif: "Source Han Serif SC", "Noto Serif SC", "Songti SC", "Times New Roman", serif;
+      --mono: "IBM Plex Mono", "SF Mono", ui-monospace, monospace;
     }
 
     * { box-sizing: border-box; }
     html { scroll-behavior: smooth; }
     body {
       margin: 0;
-      background:
-        radial-gradient(1200px 600px at 10% -10%, rgba(227, 179, 65, 0.08), transparent 50%),
-        radial-gradient(900px 500px at 100% 0%, rgba(61, 190, 173, 0.06), transparent 45%),
-        var(--bg);
-      color: var(--text);
+      background: var(--bg);
+      color: var(--ink);
       font-family: var(--sans);
-      line-height: 1.75;
-      font-size: 17px;
+      line-height: 1.7;
+      font-size: 16px;
     }
 
-    a { color: var(--gold); text-decoration: none; }
+    a { color: var(--navy-2); text-decoration: none; }
     a:hover { text-decoration: underline; }
+    code { font-family: var(--mono); font-size: 0.92em; background: var(--fill); padding: 0.05em 0.35em; }
 
     .shell {
       display: grid;
-      grid-template-columns: 280px minmax(0, 1fr);
+      grid-template-columns: 268px minmax(0, 1fr);
       min-height: 100vh;
     }
 
@@ -52,226 +47,205 @@
       top: 0;
       height: 100vh;
       overflow: auto;
-      padding: 28px 20px 40px;
+      padding: 28px 16px 40px 20px;
       border-right: 1px solid var(--line);
-      background: rgba(18, 17, 14, 0.92);
-      backdrop-filter: blur(10px);
+      background: #eef1f4;
     }
 
     .toc-brand {
-      font-family: var(--serif);
-      font-size: 15px;
-      letter-spacing: 0.08em;
-      color: var(--gold);
-      margin-bottom: 6px;
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      color: var(--navy);
+      font-weight: 700;
+      margin-bottom: 4px;
     }
 
     .toc-sub {
       color: var(--faint);
       font-size: 12px;
-      margin-bottom: 22px;
+      margin-bottom: 20px;
+      line-height: 1.4;
     }
 
     .toc a {
       display: block;
       color: var(--muted);
-      padding: 6px 10px;
+      padding: 5px 8px;
       border-left: 2px solid transparent;
-      font-size: 13.5px;
-      line-height: 1.45;
+      font-size: 13px;
+      line-height: 1.4;
     }
 
     .toc a:hover,
     .toc a.active {
-      color: var(--text);
+      color: var(--ink);
       text-decoration: none;
-      border-left-color: var(--gold);
-      background: rgba(227, 179, 65, 0.06);
+      border-left-color: var(--navy);
+      background: #fff;
     }
 
-    .toc .l2 { padding-left: 22px; font-size: 12.5px; color: var(--faint); }
+    .toc .l2 { padding-left: 18px; font-size: 12px; }
 
     .menu-btn {
       display: none;
       position: fixed;
-      top: 14px;
-      left: 14px;
+      top: 12px;
+      left: 12px;
       z-index: 20;
       border: 1px solid var(--line);
-      background: var(--surface);
-      color: var(--text);
-      border-radius: 10px;
+      background: #fff;
+      color: var(--ink);
       padding: 8px 12px;
       font: inherit;
     }
 
-    main { padding: 48px 56px 96px; max-width: 980px; }
+    main {
+      padding: 40px 56px 88px;
+      max-width: 960px;
+      background: var(--paper);
+      border-right: 1px solid var(--line);
+      min-height: 100vh;
+    }
 
-    .kicker {
-      color: var(--gold);
-      letter-spacing: 0.16em;
+    .meta {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
       font-size: 12px;
-      text-transform: uppercase;
+      color: var(--faint);
+      letter-spacing: 0.04em;
+      margin-bottom: 18px;
     }
 
-    h1, h2, h3, h4 { font-family: var(--serif); line-height: 1.25; font-weight: 600; }
-    h1 { font-size: clamp(34px, 5vw, 52px); margin: 10px 0 18px; }
-    h2 { font-size: 30px; margin: 64px 0 16px; padding-top: 12px; }
-    h3 { font-size: 22px; margin: 36px 0 12px; }
-    h4 { font-size: 18px; margin: 24px 0 8px; color: #f3ead8; }
-
-    p { margin: 0 0 16px; color: #e8dfcc; }
-    li { margin-bottom: 8px; }
-    strong { color: #fff6e4; font-weight: 650; }
-
-    .lede {
-      font-size: 20px;
-      color: var(--muted);
-      font-family: var(--serif);
-      line-height: 1.7;
+    h1, h2, h3 { font-family: var(--serif); font-weight: 650; line-height: 1.3; color: var(--navy); }
+    h1 { font-size: clamp(26px, 3.4vw, 34px); margin: 0 0 14px; color: var(--ink); }
+    h2 {
+      font-size: 22px;
+      margin: 52px 0 14px;
+      padding: 10px 0 8px;
+      border-top: 1px solid var(--line);
     }
+    h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); }
 
-    .thesis {
-      margin: 28px 0 36px;
-      padding: 22px 24px;
-      border: 1px solid rgba(227, 179, 65, 0.28);
-      background: linear-gradient(180deg, rgba(227, 179, 65, 0.08), rgba(227, 179, 65, 0.02));
-      border-radius: 16px;
-      box-shadow: var(--shadow);
-    }
+    p { margin: 0 0 12px; }
+    li { margin-bottom: 6px; }
+    ul, ol { margin: 0 0 16px; padding-left: 1.25em; }
 
-    .thesis p {
-      margin: 0;
-      font-size: 20px;
-      font-family: var(--serif);
-      color: #fff1d0;
-    }
-
-    .formula {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
-      margin: 24px 0 8px;
-    }
-
-    .formula div,
-    .card, .check, .layer, .mode {
-      background: var(--surface);
+    .abstract {
+      background: var(--fill);
       border: 1px solid var(--line);
-      border-radius: 14px;
+      padding: 16px 18px;
+      margin: 0 0 28px;
     }
 
-    .formula div {
-      padding: 16px 14px;
+    .abstract h2 {
+      margin: 0 0 8px;
+      padding: 0;
+      border: 0;
+      font-size: 14px;
+      letter-spacing: 0.12em;
+      font-family: var(--sans);
+    }
+
+    .def {
+      border: 1px solid var(--line);
+      padding: 14px 16px;
+      margin: 14px 0 20px;
+      background: #fbfcfd;
+    }
+
+    .def b { display: block; font-size: 12px; letter-spacing: 0.1em; color: var(--navy); margin-bottom: 6px; }
+
+    .props { margin: 12px 0 20px; padding: 0; list-style: none; }
+    .props li {
+      display: grid;
+      grid-template-columns: 72px 1fr;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .props code {
+      background: transparent;
+      color: var(--navy);
+      font-weight: 700;
+      padding: 0;
+    }
+
+    figure {
+      margin: 20px 0 24px;
+      padding: 12px 12px 8px;
+      border: 1px solid var(--line);
+      background: var(--fill);
+    }
+
+    figure svg { display: block; width: 100%; height: auto; }
+    figcaption {
+      font-size: 12.5px;
+      color: var(--muted);
+      margin-top: 8px;
       text-align: center;
     }
 
-    .formula b { display: block; color: var(--gold); font-size: 14px; margin-bottom: 6px; }
-    .formula span { color: var(--muted); font-size: 13px; }
-
-    .flow {
-      margin: 28px 0;
-      padding: 22px 18px 10px;
-      background: var(--bg-2);
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      overflow-x: auto;
-    }
-
-    .flow svg { display: block; width: 100%; min-width: 720px; height: auto; }
-
-    .grid-3, .grid-2 { display: grid; gap: 14px; margin: 18px 0 24px; }
+    .grid-3, .grid-2 { display: grid; gap: 10px; margin: 12px 0 20px; }
     .grid-3 { grid-template-columns: repeat(3, 1fr); }
     .grid-2 { grid-template-columns: repeat(2, 1fr); }
 
-    .card { padding: 18px 18px 14px; }
-    .card .tag {
-      display: inline-block;
-      font-size: 11px;
-      letter-spacing: 0.08em;
-      padding: 3px 8px;
-      border-radius: 999px;
-      margin-bottom: 8px;
+    .card {
+      border: 1px solid var(--line);
+      padding: 14px 14px 10px;
+      background: #fff;
     }
-    .tag-gold { color: #3a2a0a; background: var(--gold); }
-    .tag-teal { color: #062421; background: var(--teal); }
-    .tag-violet { color: #1b1540; background: var(--violet); }
-    .card h3 { margin-top: 0; font-size: 20px; }
-    .card p:last-child, .card ul:last-child { margin-bottom: 0; }
+
+    .card h3 { margin: 0 0 8px; font-size: 15px; font-family: var(--sans); }
+    .card p:last-child { margin-bottom: 0; }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      margin: 16px 0 28px;
-      font-size: 14.5px;
+      margin: 8px 0 8px;
+      font-size: 13.5px;
     }
+
     th, td {
-      border-bottom: 1px solid var(--line);
+      border: 1px solid var(--line);
       text-align: left;
-      padding: 10px 8px;
+      padding: 8px 9px;
       vertical-align: top;
     }
-    th { color: var(--gold); font-weight: 600; font-size: 13px; }
-    td { color: #e4d9c2; }
 
-    .callout {
-      border-left: 3px solid var(--teal);
-      padding: 12px 16px;
-      margin: 18px 0 24px;
-      background: rgba(61, 190, 173, 0.07);
-      border-radius: 0 12px 12px 0;
+    th {
+      background: var(--fill-2);
+      color: var(--navy);
+      font-weight: 650;
+      font-size: 12.5px;
     }
 
-    .warn {
-      border-left-color: var(--danger);
-      background: rgba(224, 122, 95, 0.08);
-    }
+    .table-wrap { margin: 0 0 8px; overflow-x: auto; }
+    .table-note { font-size: 12.5px; color: var(--muted); margin: 0 0 22px; text-align: center; }
 
-    .layers { display: grid; gap: 10px; margin: 16px 0 24px; }
-    .layer { padding: 14px 16px; display: grid; grid-template-columns: 88px 1fr 180px; gap: 12px; align-items: start; }
-    .layer b { color: var(--gold); }
-    .layer span { color: var(--muted); font-size: 14px; }
-    .layer em { color: var(--faint); font-style: normal; font-size: 13px; }
-
-    .modes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-    .mode { padding: 16px; }
-    .mode h4 { margin-top: 0; color: var(--teal); }
-
-    .checklist { display: grid; gap: 8px; margin: 12px 0 24px; }
-    .check { padding: 12px 14px; display: grid; grid-template-columns: 22px 1fr; gap: 10px; }
-    .check i {
-      width: 18px; height: 18px; border-radius: 50%;
-      border: 1.5px solid var(--gold); display: inline-block; margin-top: 4px;
+    .layers { display: grid; gap: 0; margin: 12px 0 8px; border: 1px solid var(--line); }
+    .layer {
+      display: grid;
+      grid-template-columns: 110px 1fr 200px;
+      gap: 10px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
     }
+    .layer:last-child { border-bottom: 0; }
+    .layer b { color: var(--navy); font-family: var(--mono); font-size: 13px; }
+    .layer span { color: var(--ink); font-size: 13.5px; }
+    .layer em { color: var(--faint); font-style: normal; font-size: 12.5px; }
 
-    .steps { counter-reset: step; display: grid; gap: 10px; margin: 16px 0 28px; }
-    .steps li {
-      list-style: none;
-      background: var(--surface);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 12px 14px 12px 52px;
-      position: relative;
-    }
-    .steps li::before {
-      counter-increment: step;
-      content: counter(step);
-      position: absolute;
-      left: 14px; top: 12px;
-      width: 26px; height: 26px;
-      border-radius: 50%;
-      background: rgba(227, 179, 65, 0.16);
-      color: var(--gold);
-      display: grid; place-items: center;
-      font-size: 13px; font-weight: 700;
-    }
+    .refs { font-size: 13.5px; }
+    .refs li { margin-bottom: 8px; }
 
     footer {
-      margin-top: 72px;
-      padding-top: 20px;
+      margin-top: 48px;
+      padding-top: 14px;
       border-top: 1px solid var(--line);
       color: var(--faint);
-      font-size: 13px;
+      font-size: 12px;
     }
 
     @media (max-width: 980px) {
@@ -279,26 +253,26 @@
       .toc {
         position: fixed;
         left: 0; top: 0;
-        transform: translateX(-110%);
+        transform: translateX(-105%);
         transition: transform 0.2s ease;
         z-index: 15;
-        width: min(84vw, 320px);
-        box-shadow: var(--shadow);
+        width: min(86vw, 300px);
+        background: #fff;
+        border-right: 1px solid var(--line);
       }
       .toc.open { transform: none; }
       .menu-btn { display: block; }
-      main { padding: 72px 20px 64px; }
-      .formula, .grid-3, .grid-2, .modes, .layer { grid-template-columns: 1fr; }
+      main { padding: 64px 18px 56px; border-right: 0; }
+      .grid-3, .grid-2, .layer { grid-template-columns: 1fr; }
+      .props li { grid-template-columns: 1fr; gap: 4px; }
     }
 
     @media print {
-      body { background: #fff; color: #222; }
-      .toc, .menu-btn { display: none; }
+      .toc, .menu-btn { display: none !important; }
       .shell { display: block; }
-      main { max-width: none; padding: 0; }
-      p, td, .lede, .card, .layer span { color: #222; }
-      .thesis p, h1, h2, h3, h4, strong { color: #111; }
-      .card, .formula div, .layer, .mode, .check, .steps li { break-inside: avoid; }
+      main { max-width: none; padding: 0; border: 0; }
+      h2 { break-after: avoid; }
+      figure, table, .card, .def { break-inside: avoid; }
     }
   </style>
 </head>
@@ -306,406 +280,402 @@
   <button class="menu-btn" id="menuBtn" type="button">目录</button>
   <div class="shell">
     <nav class="toc" id="toc">
-      <div class="toc-brand">讲述稿</div>
+      <div class="toc-brand">TECHNICAL BRIEF</div>
       <div class="toc-sub">语料 · Agent · 模型</div>
-      <a href="#open">开场：从聊天到 Agent</a>
-      <a href="#thesis">核心思想</a>
-      <a href="#ch-corpus">一、语料</a>
-      <a class="l2" href="#corpus-what">语料比文档更宽</a>
-      <a class="l2" href="#corpus-why">私有领域为何更依赖它</a>
-      <a class="l2" href="#corpus-quality">好语料的标准</a>
-      <a class="l2" href="#corpus-path">语料如何进入模型</a>
-      <a href="#ch-agent">二、Agent</a>
-      <a class="l2" href="#agent-def">定义与循环</a>
-      <a class="l2" href="#claude-code">对照 Claude Code</a>
-      <a class="l2" href="#deepseek-harness">对照 DeepSeek Harness</a>
-      <a class="l2" href="#converge">两边收束成一张图</a>
-      <a href="#ch-model">三、模型</a>
-      <a href="#practice">落地：私有领域怎么用</a>
-      <a href="#appendix">附录：对照与口诀</a>
+      <a href="#abstract">摘要</a>
+      <a href="#s1">1. 问题与分解</a>
+      <a href="#s2">2. 概念模型</a>
+      <a href="#s3">3. 语料</a>
+      <a class="l2" href="#s3-1">3.1 外延</a>
+      <a class="l2" href="#s3-2">3.2 私有领域的信息缺口</a>
+      <a class="l2" href="#s3-3">3.3 可用性条件</a>
+      <a class="l2" href="#s3-4">3.4 进入窗口的路径</a>
+      <a href="#s4">4. Agent</a>
+      <a class="l2" href="#s4-1">4.1 定义与循环</a>
+      <a class="l2" href="#s4-2">4.2 Claude Code</a>
+      <a class="l2" href="#s4-3">4.3 DeepSeek Harness</a>
+      <a class="l2" href="#s4-4">4.4 机制对照</a>
+      <a href="#s5">5. 模型</a>
+      <a href="#s6">6. 推论</a>
+      <a href="#refs">参考文献</a>
     </nav>
 
     <main>
-      <p class="kicker">Internal talk · Context Engineering</p>
-      <h1>语料、Agent 与模型</h1>
-      <p class="lede">私有领域里，AI 好不好用，很少只取决于“换一个更强的模型”。更常见的决定因素是：有没有可检索的事实，以及有没有一个 Agent 能在正确的时机，把这些事实组织进模型的窗口。</p>
+      <div class="meta">
+        <span>技术演示文稿</span>
+        <span>上下文构造 / Context Construction</span>
+        <span>对照系统：Claude Code · DeepSeek Harness</span>
+      </div>
+      <h1>语料、Agent 与模型：<br>私有领域中的上下文构造</h1>
 
-      <section id="open">
-        <h2>开场：从聊天到 Agent</h2>
-        <p>Chatbot 的工作方式是问一句、答一句。Agent 的工作方式是一个循环：观察环境 → 组织上下文 → 推理 → 调用工具 → 验证 → 再观察。差别不在文笔，而在它能不能持续接触真实世界，并在每一轮只把“此刻该看的东西”放进模型眼前。</p>
-        <p>所以这篇讲述不按产品功能清单展开，而按三个角色拆开：</p>
+      <section id="abstract">
+        <div class="abstract">
+          <h2>ABSTRACT</h2>
+          <p style="margin:0">通用语言模型在私有领域中的有效性，取决于当前上下文窗口中是否存在相关、及时、可验证的领域信息。本文把该过程分解为三个对象：<strong>语料</strong>（可检索的领域证据）、<strong>Agent / Harness</strong>（上下文构造与工具调度运行时）、<strong>模型</strong>（对给定窗口的条件生成器）。核心关系是：Agent 通过 Skill、MCP、Spec、工具等机制，从语料与 Prompt 构造上下文，再提交给模型。文中以 Claude Code 与 DeepSeek Harness 的公开架构作为对照，说明同一关系在不同实现中的分层方式与可观测性。</p>
+        </div>
+      </section>
+
+      <section id="s1">
+        <h2>1. 问题与分解</h2>
+        <p>对话式系统按单轮问答工作。Agent 系统按闭环工作：观测环境、构造上下文、调用模型、执行工具、验证结果、再次观测。二者的差别不在生成文本的风格，而在系统能否持续接触外部环境，并在每一步控制模型可见信息的集合。</p>
+        <p>本文将系统拆为三个对象，而不是按产品功能罗列：</p>
         <div class="grid-3">
           <article class="card">
-            <span class="tag tag-gold">语料</span>
-            <h3>事实与规范</h3>
-            <p>你们系统现在是什么样、规则是什么、哪些坑不能再踩。它是可检索、可引用、可版本管理的材料。</p>
+            <h3>语料 Corpus</h3>
+            <p>领域内可被定位、引用与版本管理的证据集合，包括文本、代码、状态记录与规范。</p>
           </article>
           <article class="card">
-            <span class="tag tag-teal">Agent</span>
-            <h3>上下文组织者</h3>
-            <p>通过 Skill、MCP、Spec、工具和 Prompt，决定读什么、读多少、用什么格式、何时停止。</p>
+            <h3>Agent / Harness</h3>
+            <p>决定读取哪些证据、以何种粒度注入、允许哪些工具、何时停止与如何验证的运行时。</p>
           </article>
           <article class="card">
-            <span class="tag tag-violet">模型</span>
-            <h3>窗口里的推理引擎</h3>
-            <p>只根据当前上下文生成下一步。窗口外的公司知识，对它等于不存在。</p>
+            <h3>模型 Model</h3>
+            <p>在固定上下文窗口上做条件生成。窗口外的私有事实对该次推理不可及。</p>
           </article>
         </div>
-        <p>贯穿全文的能力公式：</p>
-        <div class="formula">
-          <div><b>模型智力</b><span>推理、规划、生成</span></div>
-          <div><b>× 上下文质量</b><span>相关、及时、干净</span></div>
-          <div><b>× 工具可达范围</b><span>能读、能查、能验证</span></div>
-          <div><b>× 约束清晰度</b><span>Spec / 权限 / 验收</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>变量</th><th>含义</th><th>在私有部署中的作用</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>模型能力</td><td>规划、推理、生成与工具调用格式遵从</td><td>提供上限，可替换</td></tr>
+              <tr><td>上下文质量</td><td>相关性、时效、信噪比、证据是否可核对</td><td>决定模型实际可用信息</td></tr>
+              <tr><td>工具可达范围</td><td>读文件、检索、查询系统、执行验证的能力</td><td>使系统接触真实状态</td></tr>
+              <tr><td>约束清晰度</td><td>Spec、权限、验收条件</td><td>限制不可执行或不可审计的动作</td></tr>
+            </tbody>
+          </table>
         </div>
-        <p>在私有场景里，后三项通常比换模型收益更大。模型可以替换；语料、Skill、Spec、权限和工具协议，才是可积累的资产。</p>
+        <p class="table-note">表 1　系统有效性的四个变量。后三项通常构成私有场景的主要可操作空间。</p>
       </section>
 
-      <section id="thesis">
-        <h2>核心思想</h2>
-        <div class="thesis">
-          <p>Agent 通过 Skill、MCP、Spec、工具等机制，从语料和 Prompt 里组织上下文，再交给模型。</p>
+      <section id="s2">
+        <h2>2. 概念模型</h2>
+        <div class="def">
+          <b>工作定义</b>
+          Agent 通过 Skill、MCP、Spec、工具等机制，从语料与 Prompt 构造上下文，并将该上下文提交给模型。模型输出文本或工具调用；工具结果经裁剪后写回上下文或外部存储，进入下一轮。
         </div>
-        <p>三个容易讲错、后面会反复纠正的点：</p>
-        <ul>
-          <li><strong>模型不会自动“知道你们公司”。</strong>没被写进训练数据、也没被放进当前上下文的内容，对它等于不存在。</li>
-          <li><strong>Agent 的价值主要不在更会聊天，而在上下文工程。</strong>它决定读什么、何时读、读多少、用什么格式、哪些结果回传。</li>
-          <li><strong>私有领域的护城河在语料与规范，不在通用模型本身。</strong></li>
-        </ul>
-
-        <div class="flow" aria-label="语料到模型的主链路">
-          <svg viewBox="0 0 920 210" role="img">
-            <title>私有语料到模型窗口的组织链路</title>
-            <defs>
-              <linearGradient id="g1" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0" stop-color="#e3b341"/>
-                <stop offset="1" stop-color="#3dbead"/>
-              </linearGradient>
-            </defs>
-            <rect x="20" y="36" width="170" height="86" rx="14" fill="#2a2418" stroke="#e3b341"/>
-            <text x="105" y="72" text-anchor="middle" fill="#efe6d4" font-size="15" font-family="Georgia, serif">私有语料 / 规范</text>
-            <text x="105" y="96" text-anchor="middle" fill="#b3a78e" font-size="12">记忆 · 手册 · 代码</text>
-            <path d="M190 79 H250" stroke="url(#g1)" stroke-width="2"/>
-            <rect x="250" y="36" width="210" height="86" rx="14" fill="#17302c" stroke="#3dbead"/>
-            <text x="355" y="68" text-anchor="middle" fill="#efe6d4" font-size="15" font-family="Georgia, serif">Agent / Harness</text>
-            <text x="355" y="92" text-anchor="middle" fill="#b3a78e" font-size="12">Skill · MCP · Spec · 工具</text>
-            <path d="M460 79 H520" stroke="#3dbead" stroke-width="2"/>
-            <rect x="520" y="36" width="180" height="86" rx="14" fill="#241f38" stroke="#9b8cff"/>
-            <text x="610" y="72" text-anchor="middle" fill="#efe6d4" font-size="15" font-family="Georgia, serif">上下文窗口</text>
-            <text x="610" y="96" text-anchor="middle" fill="#b3a78e" font-size="12">模型唯一能看见的世界</text>
-            <path d="M700 79 H760" stroke="#9b8cff" stroke-width="2"/>
-            <rect x="760" y="36" width="140" height="86" rx="14" fill="#2a2418" stroke="#d4883a"/>
-            <text x="830" y="72" text-anchor="middle" fill="#efe6d4" font-size="15" font-family="Georgia, serif">模型</text>
-            <text x="830" y="96" text-anchor="middle" fill="#b3a78e" font-size="12">推理 + tool call</text>
-            <path d="M830 122 V168 H105" stroke="#7d7464" stroke-width="1.5" fill="none" stroke-dasharray="4 4"/>
-            <path d="M105 168 V122" stroke="#7d7464" stroke-width="1.5"/>
-            <text x="470" y="190" text-anchor="middle" fill="#b3a78e" font-size="13">行动结果写回语料 / 会话 / 产物，下一轮再被组织进窗口</text>
+        <ol class="props">
+          <li><code>P1</code><span>未写入预训练数据、且未进入当前上下文窗口的私有事实，对该次生成不可及。</span></li>
+          <li><code>P2</code><span>Agent 的主要功能是上下文构造：选择、裁剪、注入与回写，而不是替代模型完成推理。</span></li>
+          <li><code>P3</code><span>私有领域可积累的资产是语料、规范、Skill、工具协议与权限模型；模型权重是可替换组件。</span></li>
+        </ol>
+        <figure>
+          <svg viewBox="0 0 900 200" role="img" aria-labelledby="fig1-title">
+            <title id="fig1-title">上下文构造数据流</title>
+            <rect x="16" y="28" width="168" height="78" fill="#fff" stroke="#1e3a5f"/>
+            <text x="100" y="58" text-anchor="middle" fill="#1b1f24" font-size="14">语料 / Spec</text>
+            <text x="100" y="80" text-anchor="middle" fill="#4b5563" font-size="11">证据 · 规范 · 状态</text>
+            <path d="M184 67 H236" stroke="#1e3a5f" stroke-width="1.5" marker-end="url(#arr)"/>
+            <rect x="236" y="28" width="198" height="78" fill="#fff" stroke="#1e3a5f"/>
+            <text x="335" y="58" text-anchor="middle" fill="#1b1f24" font-size="14">Agent / Harness</text>
+            <text x="335" y="80" text-anchor="middle" fill="#4b5563" font-size="11">Skill · MCP · Spec · 工具</text>
+            <path d="M434 67 H486" stroke="#1e3a5f" stroke-width="1.5"/>
+            <rect x="486" y="28" width="176" height="78" fill="#fff" stroke="#1e3a5f"/>
+            <text x="574" y="58" text-anchor="middle" fill="#1b1f24" font-size="14">上下文窗口</text>
+            <text x="574" y="80" text-anchor="middle" fill="#4b5563" font-size="11">模型的输入集合</text>
+            <path d="M662 67 H714" stroke="#1e3a5f" stroke-width="1.5"/>
+            <rect x="714" y="28" width="168" height="78" fill="#fff" stroke="#1e3a5f"/>
+            <text x="798" y="58" text-anchor="middle" fill="#1b1f24" font-size="14">模型</text>
+            <text x="798" y="80" text-anchor="middle" fill="#4b5563" font-size="11">条件生成 / tool call</text>
+            <path d="M798 106 V148 H100 V106" fill="none" stroke="#6b7280" stroke-width="1.2" stroke-dasharray="4 3"/>
+            <text x="450" y="176" text-anchor="middle" fill="#4b5563" font-size="12">行动结果写回语料、会话或产物，作为后续轮次的输入</text>
           </svg>
-        </div>
+          <figcaption>图 1　语料经 Agent 构造为上下文窗口后进入模型；输出经工具执行再反馈。</figcaption>
+        </figure>
       </section>
 
-      <section id="ch-corpus">
-        <h2>一、语料：私有领域用 AI 的真正底座</h2>
-        <p>公开互联网上的模型，已经读过大量通用知识。它缺的不是“什么是 HTTP”，而是你们这套存储集群今天的拓扑、昨晚那次故障的结论、以及“这类工单必须先停写再扩容”这种只有内部才成立的约束。</p>
+      <section id="s3">
+        <h2>3. 语料：私有领域的信息基底</h2>
+        <p>预训练使模型获得公共语言与一般程序知识。私有部署中的关键缺口通常不是通用协议本身，而是组织内部的命名、拓扑、现行配置、历史故障约束与流程权限。这些信息若不以语料形式可被检索或读取，就不能稳定进入窗口。</p>
 
-        <h3 id="corpus-what">语料比“文档”更宽</h3>
+        <h3 id="s3-1">3.1 外延</h3>
+        <p>此处“语料”不限于预训练文本，而指 Agent 可调用的领域证据全集：</p>
         <div class="grid-2">
           <article class="card">
             <h3>显性知识</h3>
-            <p>设计文档、接口约定、故障手册、评审标准、合规条款。写下来了，但常常散落、过期、互相打架。</p>
+            <p>设计说明、接口约定、故障手册、评审标准、合规条款。问题常在于分散、过期与相互冲突。</p>
           </article>
           <article class="card">
-            <h3>隐性知识</h3>
-            <p>代码本身、提交历史、工单、评审意见、线上配置、监控与日志。很多“真相”只活在仓库和系统里。</p>
+            <h3>结构性记录</h3>
+            <p>源代码、提交历史、工单、配置、监控与日志。现行系统状态多存在于此，而非叙述性文档。</p>
           </article>
           <article class="card">
-            <h3>过程知识</h3>
-            <p>怎么排障、怎么发版、什么能做/不能做、谁有权改什么。这是 Agent 最需要、也最容易缺失的一层。</p>
+            <h3>过程约束</h3>
+            <p>排障顺序、发布规则、允许/禁止操作、权限边界。缺少该层时，模型只能生成程序上合理但组织上不可执行的步骤。</p>
           </article>
           <article class="card">
             <h3>负例与边界</h3>
-            <p>哪些做法看起来对、实际会出事。对私有领域特别重要：通用模型不会替你记住去年那次误删。</p>
+            <p>已知失败模式与不可复用做法。其作用是缩小生成空间，而不是增加叙述。</p>
           </article>
         </div>
 
-        <h3 id="corpus-why">为什么私有领域更依赖语料</h3>
-        <p>通用模型擅长公共模式，不擅长你们的命名、拓扑、历史坑和组织流程。幻觉的根因经常不是“模型笨”，而是<strong>窗口里没有约束它的事实</strong>。它会用一个听起来合理的公共答案，填补私有空白。</p>
-        <p>微调能改风格和少量领域词，但解决不了“今天这套系统现在是什么样”。检索 + 规范注入，比把所有文档塞进 Prompt 更稳：相关、及时、可审计。</p>
-        <div class="callout warn">
-          <strong>反例。</strong>把整本 Wiki 贴进 Prompt；文档和代码互相矛盾却不标明以谁为准；只堆 FAQ，不写约束和验收标准。这些都会让 Agent 更自信地犯错。
-        </div>
+        <h3 id="s3-2">3.2 私有领域的信息缺口</h3>
+        <p>通用模型拟合的是公共分布。私有符号、局部拓扑与组织规则落在该分布之外时，模型会用公共模式填补，表现为看似自洽但与现场不符的输出。该现象应首先作为<strong>证据缺失</strong>处理，而不是单纯的模型能力不足。</p>
+        <p>参数微调可改变术语偏好与局部格式，但不能替代对“系统当前状态”的读取。相对稳定的做法是：把可变事实放在可检索语料中，把稳定规则放在 Spec 中，由 Agent 按任务注入。</p>
 
-        <h3 id="corpus-quality">好语料的标准</h3>
-        <div class="checklist">
-          <div class="check"><i></i><div><strong>可定位</strong> — 人能找到，Agent 也能按路径、标题、接口名找到。</div></div>
-          <div class="check"><i></i><div><strong>可执行</strong> — 写的是步骤、约束、验收标准，不是口号。</div></div>
-          <div class="check"><i></i><div><strong>单一事实来源</strong> — 同一规则只在一处维护。要改接口，先改 spec。</div></div>
-          <div class="check"><i></i><div><strong>分层</strong> — 总览短，细节按需加载，避免一上来灌进窗口。</div></div>
-          <div class="check"><i></i><div><strong>带时效</strong> — 过期文档比没有文档更危险。</div></div>
-          <div class="check"><i></i><div><strong>带权限</strong> — 不是所有语料都该进上下文。</div></div>
+        <h3 id="s3-3">3.3 可用性条件</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>条件</th><th>操作定义</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>可定位</td><td>人与 Agent 均能按路径、标识符或标题检索到同一对象</td></tr>
+              <tr><td>可执行</td><td>含步骤、约束与验收，而非仅含目标陈述</td></tr>
+              <tr><td>单一事实来源</td><td>同一规则只在一处维护；冲突时有明确优先级</td></tr>
+              <tr><td>分层</td><td>摘要短、细节按需加载，避免一次性占满窗口</td></tr>
+              <tr><td>时效标注</td><td>过期内容可被识别，避免作为现行证据注入</td></tr>
+              <tr><td>权限边界</td><td>并非全部语料均可进入任意会话的上下文</td></tr>
+            </tbody>
+          </table>
         </div>
+        <p class="table-note">表 2　语料对 Agent 可用的最低条件。</p>
 
-        <h3 id="corpus-path">语料如何进入模型</h3>
-        <table>
-          <thead>
-            <tr><th>路径</th><th>典型形态</th><th>适合什么</th><th>风险</th></tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>静态注入</td>
-              <td>系统提示、项目说明、规格摘要</td>
-              <td>稳定、短、必须遵守的规则</td>
-              <td>一长就挤占窗口，且很难针对任务裁剪</td>
-            </tr>
-            <tr>
-              <td>按需检索</td>
-              <td>知识库、代码搜索、文档检索</td>
-              <td>量大、会变、只在相关时需要的事实</td>
-              <td>检索错了，模型会顺着错证据推理</td>
-            </tr>
-            <tr>
-              <td>工具读取</td>
-              <td>读文件、查库、看监控、跑测试</td>
-              <td>需要核实“现在真实状态”的任务</td>
-              <td>原始输出太长，会污染后续推理</td>
-            </tr>
-            <tr>
-              <td>会话记忆</td>
-              <td>本轮结论、压缩摘要、长期记忆</td>
-              <td>跨步骤保持目标，避免重复探索</td>
-              <td>摘要一旦偏了，后面会系统性走偏</td>
-            </tr>
-          </tbody>
-        </table>
-        <p>语料本身不会自动变成智能。它必须被 Agent 选中、裁剪、引用，才进入模型的工作台。</p>
+        <h3 id="s3-4">3.4 进入窗口的路径</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>路径</th><th>形态</th><th>适用对象</th><th>主要失效模式</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>静态注入</td>
+                <td>系统提示、项目说明、规格摘要</td>
+                <td>短、稳定、每次任务均需遵守的规则</td>
+                <td>过长则挤占窗口，且难以按任务裁剪</td>
+              </tr>
+              <tr>
+                <td>按需检索</td>
+                <td>文档库、代码搜索、向量/关键词检索</td>
+                <td>体量大、更新频繁、仅部分相关的事实</td>
+                <td>检索错误会引导后续推理</td>
+              </tr>
+              <tr>
+                <td>工具读取</td>
+                <td>读文件、查库、观测、运行测试</td>
+                <td>必须核对现行状态的任务</td>
+                <td>原始输出过长，降低后续信噪比</td>
+              </tr>
+              <tr>
+                <td>会话状态</td>
+                <td>本轮结论、压缩摘要、长期记忆</td>
+                <td>跨步骤保持目标与已确认事实</td>
+                <td>摘要偏差会在后续轮次被放大</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">表 3　语料进入模型的四条路径。语料本身不构成智能；经选择与裁剪后才成为上下文。</p>
       </section>
 
-      <section id="ch-agent">
-        <h2>二、Agent：上下文的组织者</h2>
-        <h3 id="agent-def">先把定义讲清楚</h3>
-        <div class="callout">
-          <strong>模型</strong>生成 token。<br>
-          <strong>Agent / Harness</strong> 决定模型看见什么、能调用什么、何时停止、如何验证。
+      <section id="s4">
+        <h2>4. Agent：上下文构造运行时</h2>
+        <h3 id="s4-1">4.1 定义与循环</h3>
+        <div class="def">
+          <b>定义</b>
+          模型生成 token。Agent / Harness 决定模型看见什么、可以调用什么、何时停止、如何验证。DeepSeek 的公开表述将二者写作：<strong>Agent = Model + Harness</strong>。Harness 的作用是使 Agent 能够理解运行环境、使用工具，并在真实环境中持续执行。
         </div>
-        <p>DeepSeek 的公开表述可以直接用：<strong>Agent = Model + Harness</strong>。模型是灵魂；Harness 让 Agent 理解环境、使用工具，并在真实环境里持续工作。</p>
-        <p>一次典型循环两边都能对上：</p>
-        <ol class="steps">
-          <li>收集用户目标与约束。</li>
-          <li>选择相关的 Skill、Spec 与语料。</li>
-          <li>组装系统提示、工具目录和检索片段。</li>
-          <li>模型输出文本或 tool call。</li>
-          <li>权限检查后执行工具。</li>
-          <li>把结果压缩后写回上下文。</li>
-          <li>验证是否完成；否则继续，或把脏活分给子 Agent。</li>
-        </ol>
-        <p>下面用两个公开系统对照：Claude Code 强调分层与保护主上下文；DeepSeek Harness 强调插件化与全程可追踪。共同点都是你的核心思想——<strong>运行时在组织上下文，而不是模型在“自动懂业务”</strong>。</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>步</th><th>过程</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>1</td><td>接收目标与约束（Prompt）</td></tr>
+              <tr><td>2</td><td>选择相关 Skill、Spec 与语料片段</td></tr>
+              <tr><td>3</td><td>组装系统提示、工具目录与检索结果</td></tr>
+              <tr><td>4</td><td>模型输出文本或 tool call</td></tr>
+              <tr><td>5</td><td>权限检查后执行工具</td></tr>
+              <tr><td>6</td><td>裁剪结果并写回上下文</td></tr>
+              <tr><td>7</td><td>验证终止条件；否则继续，或将探索性工作分配给子 Agent</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">表 4　Agent 循环。Claude Code 与 DeepSeek Harness 均可映射到该过程，差别在分层与实现。</p>
 
-        <h3 id="claude-code">对照 Claude Code：分层，是为了控制上下文</h3>
-        <p>按公开架构，Claude Code 可以看成五层。每一层都在回答一个问题，也在“花”上下文：</p>
+        <h3 id="s4-2">4.2 对照：Claude Code 的分层</h3>
+        <p>据公开资料，Claude Code 可描述为五层。每一层回答一个系统问题，并以不同方式消耗上下文预算：</p>
         <div class="layers">
           <div class="layer">
             <b>MCP</b>
-            <span>怎么连到外部系统：API、数据库、私有工具。</span>
-            <em>工具描述常驻窗口，越多越贵</em>
+            <span>连接外部系统（API、数据源、私有工具）。</span>
+            <em>工具 schema 常驻窗口；连接数增加则基线占用上升</em>
           </div>
           <div class="layer">
             <b>Skills</b>
-            <span>怎么把手册变成可复用、按需加载的步骤。典型形态是 <code>SKILL.md</code>。</span>
-            <em>相关时才注入，成本较低</em>
+            <span>将可复用步骤编码为按需加载的手册，典型形态为 <code>SKILL.md</code>。</span>
+            <em>仅在相关任务注入，占用较低</em>
           </div>
           <div class="layer">
             <b>Agent</b>
-            <span>主会话谁在干活：读文件、改代码、调用工具、对用户负责。</span>
-            <em>主窗口会累积对话和工具输出</em>
+            <span>主会话：读取、修改、调用工具，并对用户目标负责。</span>
+            <em>对话、文件读取与工具输出在主窗口累积</em>
           </div>
           <div class="layer">
             <b>Subagents</b>
-            <span>哪些探索不该污染主窗口。子 Agent 自己搜索，只回传结论。</span>
-            <em>用隔离换主上下文的干净</em>
+            <span>在隔离上下文中执行探索，只将结论返回主会话。</span>
+            <em>用独立窗口换取主上下文的信噪比</em>
           </div>
           <div class="layer">
             <b>Agent Teams</b>
-            <span>跨会话如何协作。成员各有独立上下文，靠消息汇总。</span>
-            <em>适合并行、长程、多角色</em>
+            <span>跨会话协作；成员各持独立上下文，通过消息汇总。</span>
+            <em>适用于并行与长程分工</em>
           </div>
         </div>
-        <p>几个值得单独讲的机制：</p>
+        <p class="table-note">图 2（表列）　Claude Code 五层及其上下文代价。</p>
+        <p>与上下文构造直接相关的机制：</p>
         <ul>
-          <li><strong>Skill</strong> 是可检索的操作手册，不是把全部流程永久写进系统提示。</li>
-          <li><strong>Spec / 项目说明</strong>（如 <code>CLAUDE.md</code>、仓库里的单一事实来源文档）应短、硬、可版本管理。稳定规则放这里。</li>
-          <li><strong>工具</strong>让模型接触真实仓库和系统。工具结果会占窗口，所以要切片读、摘要回传。</li>
-          <li><strong>上下文管理</strong>是硬约束。窗口接近上限就要压缩、清场，或把探索丢给子 Agent。</li>
+          <li><strong>Skill</strong>：可检索的操作程序，不把全部流程永久写入系统提示。</li>
+          <li><strong>Spec</strong>：如 <code>CLAUDE.md</code> 或仓库内单一事实来源文档，承载稳定规则，应短且可版本管理。</li>
+          <li><strong>工具</strong>：使模型接触仓库与运行环境；返回值必须切片或摘要，否则占用窗口。</li>
+          <li><strong>上下文管理</strong>：窗口为硬约束。接近上限时采用压缩、清场或子 Agent 隔离。</li>
         </ul>
-        <p>扩展手段也有成本排序，便于取舍：<strong>Hooks（几乎不占窗口）→ Skills（低）→ Plugins（中）→ MCP（高，因为 schema 常驻）</strong>。私有落地时，不要一上来把所有系统都挂成常驻 MCP。</p>
+        <p>扩展机制的上下文成本大致为：Hooks（接近零）→ Skills（低）→ Plugins（中）→ MCP（高，因 schema 常驻）。该顺序用于选择“把能力做成常驻连接还是按需手册”。</p>
 
-        <h3 id="deepseek-harness">对照 DeepSeek Harness：一切皆插件，每次运行可追踪</h3>
-        <p>DeepSeek Harness 的官方主线是两句：</p>
+        <h3 id="s4-3">4.3 对照：DeepSeek Harness</h3>
+        <p>DeepSeek Harness 的公开设计可归纳为两条原则。</p>
         <div class="grid-2">
           <article class="card">
-            <span class="tag tag-teal">Everything is a plugin</span>
-            <h3>能力来自组合</h3>
-            <p>模型、工具、Skill、会话、沙箱、存储、循环、调度、UI 都可以替换重组。换模型不必重写运行时；换工具或循环也不必绑死某一家模型。</p>
+            <h3>Everything is a plugin</h3>
+            <p>模型、工具、Skill、会话、沙箱、存储、循环、调度与 UI 均以插件提供，可通过配置替换或重组，而不修改核心源码。</p>
           </article>
           <article class="card">
-            <span class="tag tag-teal">Every run is traceable</span>
-            <h3>看见什么都能回放</h3>
-            <p>模型看见的一切写入只追加的 session log：系统提示、推理、工具调用与结果、子 Agent 调度、每一次上下文注入。恢复、分叉、回放、审查走同一条事件流。</p>
+            <h3>Every run is traceable</h3>
+            <p>模型可见内容写入只追加的 session log：系统提示、推理、工具调用与结果、子 Agent 调度、每一次上下文注入。恢复、分叉、检索与回放共用同一事件流。</p>
           </article>
         </div>
-        <p>这和“私有领域要可审计”直接相关：出了错，先问<strong>当时窗口里有什么</strong>，而不是只盯最终答案。Trajectory 视图按来源检查记录，就是把上下文工程变成可观察系统。</p>
-        <p>多种运行模式说明：Agent 的形态可以按任务变，不必只有一种“全能助手”。</p>
-        <div class="modes">
-          <article class="mode">
-            <h4>Standard</h4>
-            <p>完整编码 Agent：文件、shell、搜索、Skill、规划、子 Agent、工作流。</p>
-          </article>
-          <article class="mode">
-            <h4>Code</h4>
-            <p>能力与 Standard 相当，但用生成的代码编排多轮工具调用，减少来回。</p>
-          </article>
-          <article class="mode">
-            <h4>Minimal</h4>
-            <p>几乎只留 shell 和编辑器。用来评测模型本身，而不是评测一堆插件。</p>
-          </article>
-          <article class="mode">
-            <h4>Creator</h4>
-            <p>检查运行时、试验插件、组新模式。面向做 harness 的人，不是普通聊天。</p>
-          </article>
+        <p>可观测性的操作含义是：失效分析应首先检查<strong>该轮窗口中的实际注入</strong>，而不是只比较最终文本。Trajectory 按来源检查记录，使上下文构造成为可审计对象。</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>模式</th><th>配置意图</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Standard</td><td>完整工具集：文件、shell、搜索、Skill、规划、子 Agent、工作流</td></tr>
+              <tr><td>Code</td><td>能力与 Standard 相当；以生成代码编排多轮工具调用</td></tr>
+              <tr><td>Minimal</td><td>保留 shell 与编辑器，用于在最小 harness 下评测模型</td></tr>
+              <tr><td>Creator</td><td>检查运行时、试验插件并组合新模式</td></tr>
+            </tbody>
+          </table>
         </div>
+        <p class="table-note">表 5　DeepSeek Harness 运行模式。模式差异说明 Agent 形态可随评测目标与任务类型改变。</p>
 
-        <h3 id="converge">两边收束成同一张图</h3>
-        <table>
-          <thead>
-            <tr><th>机制</th><th>它在组织什么</th><th>进入窗口的时机</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>语料</td><td>事实、现状、历史坑</td><td>被检索、被读取、被引用时</td></tr>
-            <tr><td>Prompt</td><td>本轮意图和验收标准</td><td>每一轮用户输入与任务说明</td></tr>
-            <tr><td>Spec</td><td>稳定约束与单一事实来源</td><td>开场注入，或按任务引用</td></tr>
-            <tr><td>Skill</td><td>领域打法、可复用步骤</td><td>相关时按需加载</td></tr>
-            <tr><td>工具 / MCP</td><td>外部世界的动作与回传</td><td>目录常驻或按需启用；结果在调用后进入</td></tr>
-            <tr><td>Agent</td><td>以上东西的调度、裁剪、验证</td><td>它不“等于”上下文，它生产上下文</td></tr>
-            <tr><td>模型</td><td>在给定窗口上推理和下一步动作</td><td>只消费当前窗口</td></tr>
-          </tbody>
-        </table>
-        <p>Claude Code 教我们：<strong>分层 + 按需加载 + 保护主上下文</strong>。DeepSeek Harness 教我们：<strong>插件化 + 全程可追踪 + Agent = 模型 + 运行时</strong>。落地时不必二选一，把这两句话叠在自己的系统上即可。</p>
+        <h3 id="s4-4">4.4 机制对照</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>机制</th><th>输入对象</th><th>进入窗口的时机</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>语料</td><td>事实、现行状态、历史约束</td><td>检索、读取或被引用时</td></tr>
+              <tr><td>Prompt</td><td>本轮目标与验收条件</td><td>每轮用户输入</td></tr>
+              <tr><td>Spec</td><td>稳定规则与单一事实来源</td><td>开场注入或按任务引用</td></tr>
+              <tr><td>Skill</td><td>可复用操作程序</td><td>任务相关时按需加载</td></tr>
+              <tr><td>工具 / MCP</td><td>外部动作及其返回</td><td>目录常驻或按需启用；结果在调用后进入</td></tr>
+              <tr><td>Agent</td><td>对以上对象的选择、裁剪与验证</td><td>生产上下文，不等于上下文本身</td></tr>
+              <tr><td>模型</td><td>给定窗口上的下一步</td><td>只消费当前窗口</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">表 6　构造上下文的机制及其注入时机。</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>维度</th><th>Claude Code</th><th>DeepSeek Harness</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Agent 观</td><td>主 Agent、子 Agent、团队的分层协作</td><td>Agent = 模型 + 可替换 harness</td></tr>
+              <tr><td>Skill</td><td>按需加载的任务手册</td><td>作为插件的可复用能力</td></tr>
+              <tr><td>工具 / MCP</td><td>外部连接；强调常驻 schema 的窗口成本</td><td>工具与循环均为插件</td></tr>
+              <tr><td>上下文控制</td><td>压缩、清场、子 Agent 隔离</td><td>session log 作为历史的单一事实来源</td></tr>
+              <tr><td>模型位置</td><td>在受控窗口中工作</td><td>可替换；Minimal 模式用于隔离评测模型</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">表 7　两个公开系统的对照。共同点是：运行时负责组织上下文，模型不自动获得私有领域状态。</p>
       </section>
 
-      <section id="ch-model">
-        <h2>三、模型：窗口里的推理引擎</h2>
-        <p>模型擅长模式补全、规划草稿、代码和文档生成，以及在<strong>给定证据</strong>上推理。它不擅长未提供的私有事实、在超长噪音里抓重点、以及不经工具就断言外部世界。</p>
-        <div class="grid-3">
-          <article class="card">
-            <span class="tag tag-violet">能做</span>
-            <h3>在证据上思考</h3>
-            <p>给你接口定义、报错日志和验收标准，它能提出假设、改代码、写复查清单。</p>
-          </article>
-          <article class="card">
-            <span class="tag tag-violet">不能做</span>
-            <h3>替你记住公司</h3>
-            <p>没检索到的集群名、没读到的配置、没写进 Spec 的禁令，都会被它用“合理猜测”补上。</p>
-          </article>
-          <article class="card">
-            <span class="tag tag-violet">可替换</span>
-            <h3>不要把业务焊死在一家模型上</h3>
-            <p>Minimal 模式存在的意义，就是把 harness 减到最小，才能看出模型本身强不强。</p>
-          </article>
+      <section id="s5">
+        <h2>5. 模型：窗口上的条件生成器</h2>
+        <p>在本框架中，模型是对上下文窗口 <em>C</em> 的条件分布 <em>p(y | C)</em>。提高模型能力改变的是在既定 <em>C</em> 上的推理上限；改善语料与 Agent 改变的是 <em>C</em> 的内容。二者不可互相替代。</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>给定窗口内可完成</th><th>窗口外不可假设已完成</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>基于已注入证据做规划、编码、摘要与格式化工具调用</td>
+                <td>未检索到的私有标识、未读取的现行配置、未写入 Spec 的禁令</td>
+              </tr>
+              <tr>
+                <td>在证据充分时提出可验证假设</td>
+                <td>在无工具反馈时断言外部环境的当前状态</td>
+              </tr>
+              <tr>
+                <td>在噪音较低时保持目标一致性</td>
+                <td>在超长、未裁剪的工具输出中稳定抽取关键约束</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        <p><strong>上下文窗口就是模型的工作台。</strong>工作台上没有的图纸，它只能猜。所以“模型变强”和“上下文变干净”是两件事：前者提高在既有材料上的推理上限，后者决定它到底有没有材料。</p>
-        <p>这也是为什么评测私有 AI 时，不要只比模型榜单。要同时看：语料能否被找到、Skill 是否在正确任务被加载、工具结果有没有被压缩、主会话有没有被探索过程淹没。</p>
+        <p class="table-note">表 8　模型能力的边界由窗口内容界定。</p>
+        <p>因此，私有系统评测若只比较模型榜单，会混淆两类误差：模型在给定证据上推理失败，以及证据从未进入窗口。Minimal harness 的作用是把第二类因素降到最低，从而观察第一类。</p>
       </section>
 
-      <section id="practice">
-        <h2>落地：私有领域怎么用这套思想</h2>
-        <p>建议顺序与常见做法相反——先不要纠结选哪家模型。</p>
-        <ol class="steps">
-          <li><strong>先整理语料。</strong>规范、接口、故障手册、权限边界，写成 Agent 能按名称和路径检索的形式。过期的标过期，冲突的标明以谁为准。</li>
-          <li><strong>再写 Spec / Skill。</strong>把“怎么干活”从聊天里抽出来。Spec 放稳定规则；Skill 放按任务加载的打法。</li>
-          <li><strong>再接工具 / MCP。</strong>让 Agent 能读代码、查系统、跑验证，而不是只根据记忆说话。能用检索和读文件解决的，不要做成常驻 MCP。</li>
-          <li><strong>最后才选模型和运行时。</strong>Claude Code 这类产品，或 DeepSeek Harness 这类可重组 harness，都是在给模型配组织者。</li>
-          <li><strong>用轨迹审查。</strong>模型当时看见了什么，比只看最终答案更有用。错了就改语料、改 Skill、改检索，而不是先换模型。</li>
+      <section id="s6">
+        <h2>6. 推论：私有部署的变量顺序</h2>
+        <p>由 P1–P3 可得一个可操作顺序。该顺序是工程依赖，不是演示话术：</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>序</th><th>对象</th><th>完成标准</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>1</td><td>语料</td><td>规范、接口、故障记录与权限边界可被检索；冲突与过期可被识别</td></tr>
+              <tr><td>2</td><td>Spec / Skill</td><td>稳定规则进入 Spec；按任务加载的程序进入 Skill，而不依赖每次对话重述</td></tr>
+              <tr><td>3</td><td>工具 / MCP</td><td>系统能够读取代码、查询状态并运行验证；仅在检索与读文件不足时增加常驻 MCP</td></tr>
+              <tr><td>4</td><td>模型与运行时</td><td>选择可替换的模型，以及 Claude Code 类产品或 DeepSeek Harness 类可重组运行时</td></tr>
+              <tr><td>5</td><td>轨迹审查</td><td>失效时检查该轮注入了什么；优先修正语料、Skill 与检索，而不是首先替换模型</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">表 9　私有领域部署的依赖顺序。</p>
+        <div class="def">
+          <b>实例（本仓库）</b>
+          存储测试平台中，测试规范、节点状态与知识库文档属于语料；planner、executor 与 tools 属于 Agent 侧；模型仅在上述对象被构造进窗口后给出分析或修复建议。若语料缺失，输出仍可能符合通用测试叙述，但不必符合该系统的调度与节点模型。
+        </div>
+      </section>
+
+      <section id="refs">
+        <h2>参考文献</h2>
+        <ol class="refs">
+          <li>DeepSeek AI. <em>DeepSeek Harness developer preview: Everything is a plugin</em>. 公开表述包括 Agent = Model + Harness、插件化能力与只追加 session log。<a href="https://deepseek.com/harness/en/">https://deepseek.com/harness/en/</a></li>
+          <li>DeepSeek AI. <em>deepseek-ai/deepseek-harness</em>. <a href="https://github.com/deepseek-ai/DeepSeek-Harness">https://github.com/deepseek-ai/DeepSeek-Harness</a></li>
+          <li>Anthropic. <em>Using Claude Code: session management and context</em>. 关于上下文窗口、compaction 与 subagent 隔离。<a href="https://claude.com/blog/using-claude-code-session-management-and-1m-context">https://claude.com/blog/using-claude-code-session-management-and-1m-context</a></li>
+          <li>Anthropic. Claude Code 文档：Skills、MCP、CLAUDE.md 与工具扩展。分层描述据公开架构整理，非正式官方白皮书。</li>
+          <li>本文为内部技术演示，对第三方系统的归纳以公开材料为准，不构成产品说明。</li>
         </ol>
-        <div class="callout">
-          <strong>一个贴近本仓库的例子。</strong>在存储测试平台里，测试规范、节点状态、知识库文档是语料；planner、executor、tools 是 Agent 侧；模型只在被喂了这些上下文之后，才做分析或修复建议。缺语料时，它会给出一份通用的“看起来很专业”的测试方案，却对不上你们真实的调度和节点模型。
-        </div>
-        <h3>讲述时可用的收束句</h3>
-        <p>模型负责想；语料负责真；Agent 负责把真的东西，在对的时间，放到模型眼前。</p>
-      </section>
-
-      <section id="appendix">
-        <h2>附录：对照与口诀</h2>
-        <table>
-          <thead>
-            <tr><th></th><th>Claude Code 侧重</th><th>DeepSeek Harness 侧重</th><th>私有落地时怎么用</th></tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>对 Agent 的理解</td>
-              <td>主 Agent + 子 Agent + 团队，分层协作</td>
-              <td>Agent = 模型 + 可替换 harness</td>
-              <td>先画清“谁组织上下文”，再谈角色拆分</td>
-            </tr>
-            <tr>
-              <td>Skill</td>
-              <td>按需加载的任务手册</td>
-              <td>作为插件的可复用能力</td>
-              <td>领域打法不要写进每次聊天</td>
-            </tr>
-            <tr>
-              <td>工具 / MCP</td>
-              <td>连接外部世界，但要注意常驻成本</td>
-              <td>工具与循环都是插件</td>
-              <td>按任务启用，结果要压缩</td>
-            </tr>
-            <tr>
-              <td>上下文</td>
-              <td>压缩、清场、子 Agent 隔离</td>
-              <td>session log 是唯一事实来源</td>
-              <td>既要管窗口预算，也要能回放</td>
-            </tr>
-            <tr>
-              <td>模型</td>
-              <td>在受控窗口里工作</td>
-              <td>可替换；Minimal 模式用来评测模型</td>
-              <td>业务资产放语料和规范，不放模型权重</td>
-            </tr>
-          </tbody>
-        </table>
-        <h3>三句口诀</h3>
-        <ul>
-          <li>没有语料，模型只能猜。</li>
-          <li>没有 Agent，语料进不了窗口。</li>
-          <li>没有干净的窗口，再强的模型也会被噪音带偏。</li>
-        </ul>
       </section>
 
       <footer>
-        单文件讲述页 · 语料 / Agent / 模型 · 对照 Claude Code 与 DeepSeek Harness 的公开表述整理，用于内部讲解，不作为任一产品的官方文档。
+        单文件演示文稿 · 语料 / Agent / 模型 · 图 1 与表 1–9 供讲述时引用；口述口径由讲者决定。
       </footer>
     </main>
   </div>
-
   <script>
     const toc = document.getElementById("toc");
     const btn = document.getElementById("menuBtn");
     btn.addEventListener("click", () => toc.classList.toggle("open"));
-    toc.querySelectorAll("a").forEach((a) => {
-      a.addEventListener("click", () => toc.classList.remove("open"));
-    });
-
+    toc.querySelectorAll("a").forEach((a) => a.addEventListener("click", () => toc.classList.remove("open")));
     const links = [...toc.querySelectorAll("a")];
-    const sections = links
-      .map((a) => document.querySelector(a.getAttribute("href")))
-      .filter(Boolean);
-
+    const sections = links.map((a) => document.querySelector(a.getAttribute("href"))).filter(Boolean);
     const io = new IntersectionObserver((entries) => {
-      const visible = entries
-        .filter((e) => e.isIntersecting)
-        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      const visible = entries.filter((e) => e.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
       if (!visible) return;
       links.forEach((a) => a.classList.toggle("active", a.getAttribute("href") === "#" + visible.target.id));
-    }, { rootMargin: "-20% 0px -65% 0px", threshold: [0.1, 0.25, 0.5] });
-
+    }, { rootMargin: "-18% 0px -70% 0px", threshold: [0.1, 0.25, 0.5] });
     sections.forEach((s) => io.observe(s));
   </script>
 </body>
