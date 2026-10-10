@@ -1,0 +1,752 @@
+diff --git a/README.en.md b/README.en.md
+index 81a3d4f..375d152 100644
+--- a/README.en.md
++++ b/README.en.md
+@@ -26,7 +26,7 @@ Agent kernel.
+ Download the package from [GitHub Releases](https://github.com/Ssshake1996/myterm/releases), then run:
+ 
+ ```powershell
+-dsh plugin --profile web add .\dsh-remote-ops-v0.2.17.tgz
++dsh plugin --profile web add .\dsh-remote-ops-v0.2.24.tgz
+ dsh web
+ ```
+ 
+diff --git a/README.md b/README.md
+index 9219b2a..6062f10 100644
+--- a/README.md
++++ b/README.md
+@@ -27,7 +27,7 @@
+ 从 [GitHub Releases](https://github.com/Ssshake1996/myterm/releases) 下载插件包，然后执行：
+ 
+ ```powershell
+-dsh plugin --profile web add .\dsh-remote-ops-v0.2.22.tgz
++dsh plugin --profile web add .\dsh-remote-ops-v0.2.24.tgz
+ dsh web
+ ```
+ 
+@@ -63,7 +63,7 @@ SSH 密码和私钥不写入 JSON；密码通过 Sidebar 表单保存到 Harness
+ 
+ ```powershell
+ powershell -NoProfile -ExecutionPolicy Bypass `
+-  -File scripts/release-dsh-remote-ops.ps1 -Version 0.2.22
++  -File scripts/release-dsh-remote-ops.ps1 -Version 0.2.24
+ ```
+ 
+ 发布脚本会执行一次完整回归门禁（包含语法检查、单元、客户端行为、契约和烟测），通过后再打包、提交、创建 Tag、推送主分支和发布 GitHub Release。测试矩阵和 3080 页面验收要求见 `docs/testing/dsh-remote-ops-test-plan.md`。
+diff --git a/docs/development-experience.md b/docs/development-experience.md
+index f18df31..beb2060 100644
+--- a/docs/development-experience.md
++++ b/docs/development-experience.md
+@@ -1,5 +1,13 @@
+ # myterm Development Experience Record
+ 
++## 31. 设备 CLI 确认、分页和脏命令行（0.2.24）
++
++1. `(y/n)` 和 `--More--` 必须留在同一次 `remote_terminal_send` 里处理。每确认一次再回到模型，单次就要 10–20 秒，一次变更任务会堆出几十次往返。
++2. 自动确认默认关闭，并且只匹配输出末尾。历史里的 `(y/n)` 或上一屏的 `--More--` 不能再写 `y` / `q`，否则会污染下一条命令。
++3. 参数错误画面不会自己清行，下一条命令会拼在残留字符后面。返回前发一次 SIGINT，把清行标记放在工具结果里，不要写进终端缓冲，避免续读把元数据当成设备输出。
++4. 应答目前固定 `y\n`，分页退出固定 `q`。真机如果只认 CR，用后续方案里的 `confirmText`，不要先改默认值。
++5. 假终端回归不能写成 3080 或真机验收。后续项见 `docs/plans/remote-terminal-send-followups.md`。
++
+ ## 30. 无活动会话的 SSH 命令入口与持久错误（0.2.7）
+ 
+ 1. 没有活动 SSH 会话时，终端仍需要保持可输入状态，但只有按 Enter 完成一行后才解析 SSH 命令，避免把普通字符逐字发送到不存在的通道。
+diff --git a/docs/development-handoff.md b/docs/development-handoff.md
+index 817e5b8..250517f 100644
+--- a/docs/development-handoff.md
++++ b/docs/development-handoff.md
+@@ -1,7 +1,7 @@
+ # dsh-remote-ops 开发交接说明
+ 
+-> 基线日期：2026-09-26
+-> 基线版本：`dsh-remote-ops v0.2.22`
++> 基线日期：2026-10-10
++> 基线版本：`dsh-remote-ops v0.2.24`
+ > 基线提交：以 `git log -1` 为准  
+ > 项目根目录：`F:\myterm`  
+ > GitHub：`Ssshake1996/myterm`
+@@ -30,6 +30,8 @@ Remote Ops 插件负责：
+ 
+ ## 2. 当前版本状态
+ 
++v0.2.24 在 `remote_terminal_send` 内处理设备 CLI 的三类交互：`autoConfirm` 默认关闭，打开后对输出末尾的 `(y/n)` 写入 `y\n` 并继续等待，最多 3 次，可用 `confirmPattern` 换正则；`autoQuitMore` 默认关闭，只在最后一行仍是 `--More--` 时写入 `q` 并等待 300ms；参数错误画面（缩进 `^` 加 `[参数=?]`）返回前自动 SIGINT，等待 500ms，工具结果末尾附加 `[auto-sigint: command line cleared]`。该标记不进入终端滚动缓冲，`completion` 仍是 `unknown`。后续优化见 [终端发送后续方案](plans/remote-terminal-send-followups.md)。本次发布没有 DSH Web profile，未做 3080 页面验收，也未连接真实存储设备。
++
+ v0.2.22 提供终端下方直接执行的常用命令按钮及可上下拖拽的窗格。复用现有命令库，支持增删改查、多行、分组、搜索、排序、隐藏/恢复按钮和按命令启用确认。默认展开；高度按插件实际空间限制，不限两行或 360px，命令内部滚动，保留最低终端可视区域并持久化高度和展开状态。
+ 
+ 下发锁定 owner、具体终端、输出流及命令版本，一次写入完整命令和 Enter，不经过模型，不自动连接/换目标/接管/重发。十分钟、最多 1024 条的进程内回执用于并发及网络重试去重，不宣称无限期持久幂等。当前浏览器未提交输入和 Agent 活动发送会阻止下发；写入回执不代表执行完成，未知错误保留阶段、错误码及堆栈。新增元数据使用正常缺省值，没有旧系统迁移或第二套命令数据。
+@@ -37,7 +39,7 @@ v0.2.22 提供终端下方直接执行的常用命令按钮及可上下拖拽的
+ v0.2.21 已撤回的跨浏览器输入权锁、连接编号/备注保持撤回。人工与 Agent 输入协调、owner/stream 校验、每会话每环境最多 3 条 SSH 连接及指定释放不变；其余 SFTP、独立命令和 VT 能力保留。不得用隐式锁替代已撤回的功能。
+ 
+ - 四层自动化测试接入 `npm test`，`npm run check` 是唯一发布门禁；Release 脚本再次调用。
+-- 当前检查通过：56 项后端/传输/路由/独立命令、27 项客户端、7 项契约及烟测，新增回归先红后绿。
++- v0.2.24 检查通过：61 项后端/传输/路由/独立命令、31 项客户端、9 项契约及烟测。v0.2.22 当时为 56 / 27 / 7。
+ - 测试矩阵见 [测试计划](testing/dsh-remote-ops-test-plan.md)，发布说明见 [v0.2.22](releases/dsh-remote-ops-v0.2.22.md)。
+ - 运行时提交 `9d02e2d`，Tag `dsh-remote-ops-v0.2.22`；[正式 Release](https://github.com/Ssshake1996/myterm/releases/tag/dsh-remote-ops-v0.2.22) 已发布。交接和验收记录另作文档提交，不再发布版本。
+ 
+diff --git a/docs/plans/remote-terminal-send-followups.md b/docs/plans/remote-terminal-send-followups.md
+new file mode 100644
+index 0000000..2360a0b
+--- /dev/null
++++ b/docs/plans/remote-terminal-send-followups.md
+@@ -0,0 +1,29 @@
++# remote_terminal_send 后续优化方案
++
++v0.2.24 把三类设备 CLI 交互收进同一次 `remote_terminal_send`：末尾 `(y/n)` 自动回答、最后一行 `--More--` 自动退出、参数错误画面自动 SIGINT。下面是还没做、但值得做的改动。按对模型往返和误操作的影响排序。
++
++## P0：让模型少打一轮，同时避免重复执行
++
++1. **等到提示符再返回。** 现在静默 `quietMs`（默认 700ms）就返回，慢设备的 `(y/n)` 或 `admin:/>` 还没出现，模型仍要再读一次。增加 `promptPattern`，在超时内继续等到末尾匹配该提示。匹配到交互提示符时可以把 `completion` 从 `unknown` 收窄为 `prompt`，仍然不伪造退出码。
++2. **`requestId` 去重。** 快捷命令已经有 10 分钟回执去重，`remote_terminal_send` 没有。自动确认成功后，模型若重试同一次 delete/create，会再执行一遍。沿用 quick dispatch 的 `requestId` + owner + 命令指纹，重复请求直接返回上一次回执。
++3. **`confirmText`。** 应答目前固定 `y\n`。有的 CLI 只把 `\r` 当提交。默认保持 `y\n`，调用方传 `confirmText: "y\r"` 即可，不必再改插件。
++
++## P1：缩小误清行和误回答
++
++4. **参数错误清行改为可关闭，并收紧触发条件。** v0.2.24 对每次 send 都扫描。后续默认仍开启，但增加 `autoClearParameterError: false`。只在最后约 30 行命中，并且最后一行不像普通提示符时才发 SIGINT。清行后若恢复输出里仍拼着上一条命令，再发一次，最多两次。能判断当前没有前台进程时，优先发擦行（Ctrl+U）而不是 SIGINT，避免误杀正在跑的命令。
++5. **批量工具透传。** `remote_terminal_batch` 仍是普通 `send`。把 `autoConfirm`、`confirmPattern`、`autoQuitMore` 传到每个目标，否则多设备任务又退回一轮一确认。
++6. **设备档案。** 为存储 CLI 增加可选 profile（例如确认文案、分页符、提示符、是否默认自动确认）。模型只选档案，不必每次记三个参数。档案不能默认对所有 SSH 环境打开自动确认。
++7. **分页符放宽。** 现在只认最后一行里的 `--More--`。后续用可配置 `pagerPattern` 覆盖 `---- More ----`、`<--- More --->`、`(Press ENTER)`，退出字符默认仍是 `q`。
++
++## P2：上下文和可观察性
++
++8. **压缩已回答的警告。** 双重确认的 WARNING 往往很长。增加 `compactPrompts`，把已经自动回答的提示换成一行摘要，原始输出仍留在终端缓冲里，工具结果只带摘要和 `autoConfirmed`。
++9. **界面能看见插件代操作。** 标记不进滚动缓冲是故意的，否则续读会把元数据当成设备输出。Sidebar 事件条应显示“已自动回答 N 次 / 已清行 / 已退出分页”，方便人和模型核对。
++10. **接管会话不要中断自动化。** 宿主接管的 SSH 会话每次 `refresh` 会换新的输出流。v0.2.24 遇到流被替换就停止自动回答。应在新快照的末尾继续判断，而不是直接放弃。
++11. **真机回放。** 单元测试使用了确认文案、`--More--` 行和 `^` / `[host_group_id=?]` 样例，但是假终端。下一步用一份脱敏的 PTY 字节记录回放，覆盖 GB18030 和行尾 `\r\n`，再在有 DSH profile 的机器上做 3080 验收。不要把假终端通过写成真机通过。
++
++## 不建议做
++
++- 不要把 `autoConfirm` 默认改成 true。它会在用户没要求的高风险命令上自动回答 yes。
++- 不要在插件里再做一套 Agent 循环、权限门禁或长期记忆。这些仍属于 DeepSeek Harness。
++- 不要为了清行去解析所有交互程序的退出码。`completion: "unknown"` 继续表示“静默不是完成”。
+diff --git a/docs/releases/dsh-remote-ops-v0.2.24.md b/docs/releases/dsh-remote-ops-v0.2.24.md
+new file mode 100644
+index 0000000..a2e3b42
+--- /dev/null
++++ b/docs/releases/dsh-remote-ops-v0.2.24.md
+@@ -0,0 +1,28 @@
++# dsh-remote-ops v0.2.24
++
++## 变更
++
++- `remote_terminal_send` 新增 `autoConfirm`（默认 `false`）和 `confirmPattern`。启用后，若本次输出末尾匹配 `(y/n)`（默认正则 `\(y\/n\)\s*$`），同一次工具调用写入 `y\n` 并继续等待，最多 3 次。
++- 新增 `autoQuitMore`（默认 `false`）。仅当输出最后一行仍包含 `--More--` 时写入 `q`，再等待 300ms 读取剩余输出。末尾已经是确认提示时不发送 `q`，避免把 `q` 打进下一条命令。
++- 返回前检测参数错误画面（换行、缩进 `^`、下一行 `[参数=?]`，正则 `\n\s+\^\s*\n\s*\[.*\=.*\]`）。命中后发送一次 SIGINT 清行，等待 500ms 读取恢复输出，并在工具结果末尾追加 `[auto-sigint: command line cleared]`。
++- 该标记只存在于工具结果里，不写入终端滚动缓冲，续读游标也不包含它。`completion` 仍为 `unknown`。
++- 结果增加 `autoConfirmed`、`autoMoreQuit`、`autoSigint`。系统提示要求只对用户已经要求执行的操作打开 `autoConfirm`。
++
++## 自动化验证
++
++- `npm run check`：通过。
++- 61 项后端/状态/传输测试、31 项生产客户端行为测试、9 项契约测试和静态 smoke 全部通过。
++- 新增回归覆盖：双重 `(y/n)` 在一次发送内回答且第 3 次停止；默认关闭时不写 `y`；非法 `confirmPattern` 在写入前拒绝；`--More--` 后继续确认；历史分页行不再次发送 `q`；参数错误画面发送 SIGINT，标记不进入缓冲区；SSH backend 的 `startSend` 路径同样回答确认并清行。
++
++## 本机 3080 验收
++
++- 本次发布环境没有 DSH Web profile，未启动 `dsh web`，未安装到 web profile，也未连接真实存储设备 CLI。
++- 不能把单元测试里的假终端输出写成 3080 页面验收或真机成功。
++
++## 已知限制
++
++- 自动确认和退出分页只处理本次等待窗口里已经出现的输出。设备慢于 `quietMs`（默认 700ms）时，提示还没出现，调用方仍要 `remote_terminal_read`。
++- 确认应答固定为 `y\n`，分页退出固定为 `q`。只认 CR 的 CLI 需要后续的 `confirmText`。
++- 参数错误清行对每一次 `remote_terminal_send` 生效，没有单独开关。快捷按钮不走这条路径。
++- 只扫描本次输出最后 8KB。SIGINT 清的是当前行；如果误匹配正在运行的前台程序，会中断它。
++- `remote_terminal_batch` 还没有透传这三个参数。
+diff --git a/docs/testing/dsh-remote-ops-test-plan.md b/docs/testing/dsh-remote-ops-test-plan.md
+index ad9bf60..da2b18b 100644
+--- a/docs/testing/dsh-remote-ops-test-plan.md
++++ b/docs/testing/dsh-remote-ops-test-plan.md
+@@ -33,6 +33,7 @@ npm run check
+ | Agent 与 UI 同流 | 注册工具/HTTP 路由行为测试 + 3080 真实模型验收 | local-cmd 可发送、读取、中断；发送等待新输出，不重复旧历史；续读与路由返回同一段流 |
+ | 输出分页与重启 | 后端和客户端行为测试 | 保留范围内按游标顺序分页、不拆 Unicode 代理对；同长度新流 reset；断续帧不能悄悄拼接 |
+ | 并发输入与等待 | 后端和客户端行为测试 | 输入锁定排队时的 session/owner；活动发送互斥；取消、退出释放等待；静默不报告命令完成 |
++| 设备 CLI 确认、分页和参数错误清行 | 后端行为 + 契约测试 | `(y/n)` 最多自动回答 3 次且默认关闭；`--More--` 只在最后一行退出；`^` 加 `[参数=?]` 触发一次 SIGINT，标记不进入滚动缓冲 |
+ | Tab、控制键、SSH 命令 | 契约测试 + SSH 解析行为测试 | 解析 host/user/port/key，保留交互输入路径 |
+ | 多 SSH、批量命令、Agent 工具 | 工具契约测试 | 所有 `remote_terminal_*` 和 batch 工具持续存在 |
+ | SFTP | 工具契约测试 | list/read/write/mkdir/delete/rename 接口持续存在 |
+diff --git a/integrations/dsh-remote-ops/README.md b/integrations/dsh-remote-ops/README.md
+index 9da74f2..1d738f5 100644
+--- a/integrations/dsh-remote-ops/README.md
++++ b/integrations/dsh-remote-ops/README.md
+@@ -37,7 +37,7 @@ Install the release tarball with the official DSH plugin manager. The
+ the patch into the profile by hand.
+ 
+ ```sh
+-dsh plugin --profile web add ./dsh-remote-ops-v0.2.23.tgz
++dsh plugin --profile web add ./dsh-remote-ops-v0.2.24.tgz
+ dsh web
+ ```
+ 
+@@ -92,12 +92,14 @@ key may be referenced by local path.
+ 
+ ## Agent tools
+ 
+-Version 0.2.23 exposes environment list/create/update/delete, group management,
+-terminal
+-open/send/read/signal/close, multi-target batch execution, quick-command list
+-and run, SFTP operations, and diagnostics. The system-prompt contribution tells
+-the model to send a complete command when it is known and to use incremental
+-terminal feedback only when the current CLI state is genuinely uncertain.
++Version 0.2.24 adds `autoConfirm`, `confirmPattern`, and `autoQuitMore` to
++`remote_terminal_send`, and clears a parameter-error screen with SIGINT before
++returning. The plugin still exposes environment list/create/update/delete,
++group management, terminal open/send/read/signal/close, multi-target batch
++execution, quick-command list and run, SFTP operations, and diagnostics. The
++system-prompt contribution tells the model to send a complete command when it
++is known and to use incremental terminal feedback only when the current CLI
++state is genuinely uncertain.
+ 
+ Use `session: "local-cmd"` for the plugin's shared visible local terminal,
+ not the Harness built-in bash/pwsh tool. For SSH, reuse an explicit session
+@@ -124,6 +126,15 @@ do not prove command completion or success: `completion` remains `unknown`.
+ Observe actual results before dependent commands. Cancellation interrupts the
+ foreground process; a wait timeout alone does not kill it.
+ 
++`autoConfirm` defaults to false. When true, a send that ends in `(y/n)` writes
++`y` and a newline, then keeps waiting, at most three times. `confirmPattern`
++is a JavaScript regular expression anchored to the end of that output.
++`autoQuitMore` defaults to false and writes `q` only when the last line still
++contains `--More--`, then waits 300 ms. A parameter-error screen (a caret line
++followed by `[name=?]` hints) is cleared with SIGINT on every send; the tool
++result ends with `[auto-sigint: command line cleared]`. That marker is not
++written into the terminal stream, and `completion` stays `unknown`.
++
+ The terminal status bar distinguishes transport, Agent binding, and the last
+ tool response range/time. A tool receipt is not proof that a model understood
+ the output. Enlarged icon controls have tooltips. The quick-command dock
+diff --git a/integrations/dsh-remote-ops/README.zh-CN.md b/integrations/dsh-remote-ops/README.zh-CN.md
+index 9f23a15..f29ac3c 100644
+--- a/integrations/dsh-remote-ops/README.zh-CN.md
++++ b/integrations/dsh-remote-ops/README.zh-CN.md
+@@ -4,7 +4,7 @@
+ 
+ 独立的 DeepSeek Harness 远程运维插件，不依赖 myterm 桌面程序。
+ 
+-客户端兼容 DSH 0.2.0-rc.2 的 `Regular` 图标导出，并回退支持旧版按尺寸命名的图标。v0.2.23 修复图标导出变化导致的 Remote Ops 面板空白；启动失败提示改由 DSH `shell.overlay` 宿主插槽承载，不再向页面 body 创建全局浮层。
++客户端兼容 DSH 0.2.0-rc.2 的 `Regular` 图标导出，并回退支持旧版按尺寸命名的图标。v0.2.23 修复图标导出变化导致的 Remote Ops 面板空白；启动失败提示改由 DSH `shell.overlay` 宿主插槽承载，不再向页面 body 创建全局浮层。v0.2.24 在 `remote_terminal_send` 内自动回答末尾 `(y/n)`、按需退出 `--More--`，并在参数错误画面出现后发送 SIGINT 清行。
+ 
+ ## 能力
+ 
+@@ -33,7 +33,7 @@
+ 使用 DSH 官方插件管理器安装 release 压缩包。包内的 `dsh.bundle.patch` 声明会自动把插件加入 profile，不需要手工复制 patch。
+ 
+ ```sh
+-dsh plugin --profile web add ./dsh-remote-ops-v0.2.23.tgz
++dsh plugin --profile web add ./dsh-remote-ops-v0.2.24.tgz
+ dsh web
+ ```
+ 
+@@ -78,6 +78,9 @@ DSH Web 启动后，点击 Sidebar 底部的 `Remote Ops` 即可主动展开右
+ - 终端新增备用屏、滚动区域和字符集转义处理，全屏表格不软换行。当前宿主本地 PTY 无运行时 resize API，仍为固定 160x40，不承诺完整 xterm 兼容；真实 OS 输入法仍需对应设备验收。
+ 
+ - `remote_terminal_send/read/signal` 都支持 `session: "local-cmd"`，指向插件内共享的本地 CMD，不是 Harness 内置 bash/pwsh。SSH 应优先复用环境列表中的明确 sessionId；按环境发送时复用唯一连接，多连接时要求明确指定。
++- `autoConfirm` 默认关闭。打开后，若本次输出末尾是 `(y/n)`，同一次调用写入 `y\n` 并继续等待，最多 3 次。`confirmPattern` 可换成调用方的正则，匹配位置固定在输出末尾。
++- `autoQuitMore` 默认关闭。仅当最后一行仍包含 `--More--` 时写入 `q`，再等待 300ms。末尾已经是确认提示时不发送 `q`。
++- 参数错误画面（缩进 `^` 加下一行 `[参数=?]`）在返回前自动 SIGINT 清行，等待 500ms，并在工具结果末尾附加 `[auto-sigint: command line cleared]`。该标记不写入终端滚动缓冲，也不表示命令成功。
+ - 发送等待新输出，默认只返回最多 16,384 个 UTF-16 码元的增量（不拆分代理对），不再重复附带旧 viewport；需要最近历史时显式传 `includeViewport: true`。
+ - 续读使用 `remote_terminal_read`，传入 `session`、上次的 `nextOffset` 作为 `cursor`、`streamId` 和 `waitMs: 20000`。`hasMore` 为 true 时继续读完，不要通过重发命令获取输出。
+ - 省略游标读取最近历史；显式 `offset/count` 按行向前翻阅。`reset/truncated` 表示流已替换或历史已过期，不能假定遗漏部分不存在。
+diff --git a/integrations/dsh-remote-ops/lib/client.js b/integrations/dsh-remote-ops/lib/client.js
+index 6c4fdfe..e07a6ae 100644
+--- a/integrations/dsh-remote-ops/lib/client.js
++++ b/integrations/dsh-remote-ops/lib/client.js
+@@ -109,7 +109,7 @@ window.__ModuleLoader__.load({
+     `;
+     const failureMessage = (value, status) => [value.title, `HTTP ${status}`, value.code, value.stage, value.error, value.details ?? value.stack, value.cleanupError].filter(Boolean).join("\n");
+     async function request(path, init) { const response = await fetch(path, init); const text = await response.text(); let value = {}; try { value = text ? JSON.parse(text) : {}; } catch { throw new Error(`HTTP ${response.status}: ${text}`); } if (!response.ok) { const error = Object.assign(new Error(value.error ?? `HTTP ${response.status}`), value); error.message = failureMessage(value, response.status); throw error; } return value; }
+-    const empty = { groups: [], environments: [], quickGroups: [], quickCommands: [], sessions: [], events: [], bound: false, pluginName: "dsh-remote-ops", pluginVersion: "0.2.23", update: { currentVersion: "0.2.23", latestVersion: "0.2.23", updateAvailable: false } };
++    const empty = { groups: [], environments: [], quickGroups: [], quickCommands: [], sessions: [], events: [], bound: false, pluginName: "dsh-remote-ops", pluginVersion: "0.2.24", update: { currentVersion: "0.2.24", latestVersion: "0.2.24", updateAvailable: false } };
+     const glyph = { environments: "▦", quick: "⌘", sftp: "⇄", diagnostics: "⌁" };
+     const terminalScreenModel = (value, rows = 40, columns = 160) => {
+       const source = String(value ?? "");
+diff --git a/integrations/dsh-remote-ops/lib/index.js b/integrations/dsh-remote-ops/lib/index.js
+index 9d67bd7..5ab79a1 100644
+--- a/integrations/dsh-remote-ops/lib/index.js
++++ b/integrations/dsh-remote-ops/lib/index.js
+@@ -218,6 +218,82 @@ function compareVersions(left, right) {
+   return a.major - b.major || a.minor - b.minor || a.patch - b.patch;
+ }
+ 
++export const DEFAULT_CONFIRM_PATTERN = "\\(y\\/n\\)\\s*$";
++export const AUTO_CONFIRM_LIMIT = 3;
++export const AUTO_SIGINT_MARKER = "[auto-sigint: command line cleared]";
++export const MORE_QUIT_WAIT_MS = 300;
++export const PARAMETER_CLEAR_WAIT_MS = 500;
++const CONFIRM_PATTERN_MAX = 200;
++const PROMPT_SAMPLE_CHARS = 4096;
++const PARAMETER_ERROR_CHARS = 8192;
++const TRAILING_TERMINAL_NOISE = /(?:\u001b\[[0-?]*[ -/]*[@-~]|\u001b[@-_])+$/;
++const NESTED_QUANTIFIER = /(?:[*+]|\{\d*,\d*\})\)?(?:[*+]|\{\d*,?\d*\})/;
++
++export function compileConfirmPattern(pattern) {
++  const source = pattern == null || String(pattern).trim() === "" ? DEFAULT_CONFIRM_PATTERN : String(pattern);
++  if (source.length > CONFIRM_PATTERN_MAX) throw sessionError("CONFIRM_PATTERN_INVALID", `confirmPattern must be at most ${CONFIRM_PATTERN_MAX} characters`);
++  if (NESTED_QUANTIFIER.test(source)) throw sessionError("CONFIRM_PATTERN_INVALID", "confirmPattern must not contain nested quantifiers");
++  try {
++    return new RegExp(source);
++  } catch (error) {
++    throw sessionError("CONFIRM_PATTERN_INVALID", `confirmPattern is not a valid regular expression: ${summarizeError(error)}`);
++  }
++}
++
++function promptSample(text) {
++  return String(text ?? "").replace(/\r/g, "").slice(-PROMPT_SAMPLE_CHARS).replace(TRAILING_TERMINAL_NOISE, "").trimEnd();
++}
++
++export function outputNeedsConfirm(text, pattern) {
++  const regex = pattern instanceof RegExp ? pattern : compileConfirmPattern(pattern);
++  const flags = [...regex.flags].filter((flag) => "isu".includes(flag)).join("");
++  let anchored;
++  try {
++    anchored = new RegExp(`(?:${regex.source})$`, flags);
++  } catch (error) {
++    throw sessionError("CONFIRM_PATTERN_INVALID", `confirmPattern cannot be anchored: ${summarizeError(error)}`);
++  }
++  return anchored.test(promptSample(text));
++}
++
++export function morePromptActive(text) {
++  const line = promptSample(text).split("\n").at(-1) ?? "";
++  return line.includes("--More--");
++}
++
++export function hasParameterError(text) {
++  const sample = String(text ?? "").replace(/\r/g, "").slice(-PARAMETER_ERROR_CHARS);
++  if (!sample.includes("^") || !sample.includes("=")) return false;
++  return /\n\s+\^\s*\n\s*\[.*\=.*\]/m.test(sample);
++}
++
++function outputSince(session, startOffset, streamId) {
++  const buffer = session.outputBuffer;
++  if (!buffer || streamId !== buffer.streamId) return { replaced: true, text: buffer?.value ?? "" };
++  if (!Number.isSafeInteger(startOffset) || startOffset < buffer.startOffset || startOffset > buffer.endOffset) return { replaced: true, text: buffer.value };
++  return { replaced: false, text: buffer.value.slice(startOffset - buffer.startOffset) };
++}
++
++function appendAutoSigintMarker(text) {
++  if (String(text).endsWith(AUTO_SIGINT_MARKER)) return text;
++  return `${text.endsWith("\n") ? text : `${text}\n`}${AUTO_SIGINT_MARKER}`;
++}
++
++function waitForTerminal(ms, signal) {
++  if (signal?.aborted) return Promise.reject(signal.reason ?? sessionError("ABORTED", "Terminal wait aborted"));
++  return new Promise((resolve, reject) => {
++    const timer = setTimeout(() => {
++      signal?.removeEventListener("abort", onAbort);
++      resolve();
++    }, ms);
++    const onAbort = () => {
++      clearTimeout(timer);
++      reject(signal.reason ?? sessionError("ABORTED", "Terminal wait aborted"));
++    };
++    signal?.addEventListener("abort", onAbort, { once: true });
++  });
++}
++
+ async function fetchLatestRelease() {
+   const controller = new AbortController();
+   const timer = setTimeout(() => controller.abort(), 12_000);
+@@ -1144,8 +1220,61 @@ export class RemoteOpsState {
+     return { requestId, cancellationRequested: true };
+   }
+ 
++  async deliverText(owner, target, record, session, request) {
++    const operation = target === LOCAL_SESSION_ID ? session.startSend(request) : this.ctx.terminals.startSend(owner, record.sessionId, request);
++    session.pendingSend = operation;
++    try {
++      return await operation.done;
++    } finally {
++      if (session.pendingSend === operation) session.pendingSend = undefined;
++      session.outputBuffer.notify();
++    }
++  }
++
++  async runSendAutomation(owner, target, record, session, args, startOffset, streamId, quietMs, timeoutMs, initialResult) {
++    const autoConfirm = args.autoConfirm === true;
++    const autoQuitMore = args.autoQuitMore === true;
++    const confirmRegex = autoConfirm ? compileConfirmPattern(args.confirmPattern) : null;
++    let result = initialResult;
++    let autoConfirmed = 0;
++    let autoMoreQuit = false;
++    let automationError;
++    if (!autoConfirm && !autoQuitMore) return { result, autoConfirmed, autoMoreQuit, automationError };
++    const maxSteps = AUTO_CONFIRM_LIMIT + 1;
++    for (let step = 0; step < maxSteps; step += 1) {
++      if (args.signal?.aborted || result?.waitReason === "cancelled" || session.status().kind === "exited" || session.outputBuffer.streamId !== streamId) break;
++      const current = outputSince(session, startOffset, streamId);
++      if (current.replaced) break;
++      const needsConfirm = autoConfirm && autoConfirmed < AUTO_CONFIRM_LIMIT && outputNeedsConfirm(current.text, confirmRegex);
++      const needsMore = autoQuitMore && !autoMoreQuit && morePromptActive(current.text) && !needsConfirm;
++      if (!needsConfirm && !needsMore) break;
++      const before = current.text;
++      try {
++        result = await this.deliverText(owner, target, record, session, {
++          text: needsConfirm ? "y\n" : "q",
++          submit: false,
++          quietMs: needsConfirm ? quietMs : MORE_QUIT_WAIT_MS,
++          timeoutMs: needsConfirm ? timeoutMs : MORE_QUIT_WAIT_MS,
++          signal: args.signal,
++        });
++      } catch (error) {
++        if (args.signal?.aborted) throw error;
++        automationError = summarizeError(error);
++        break;
++      }
++      if (session instanceof AdoptedTerminalSession) await session.refresh();
++      if (needsConfirm) autoConfirmed += 1;
++      else autoMoreQuit = true;
++      const after = outputSince(session, startOffset, streamId);
++      if (after.replaced || after.text === before || result?.waitReason === "cancelled" || session.status().kind === "exited") break;
++    }
++    return { result, autoConfirmed, autoMoreQuit, automationError };
++  }
++
+   async send(owner, target, args) {
+     await this.ready;
++    args = args ?? {};
++    if (args.autoConfirm === true) compileConfirmPattern(args.confirmPattern);
+     if (!target && !args.environment) throw sessionError("REMOTE_SESSION_REQUIRED", "Pass session (SSH session id or local-cmd), or environment when opening on demand");
+     if (!target && args.environment) {
+       this.reconcileHostSessions(owner);
+@@ -1162,11 +1291,36 @@ export class RemoteOpsState {
+     const streamId = session.outputBuffer.streamId;
+     const submittedText = String(args.text ?? args.command ?? "");
+     const submit = args.submit ?? args.newline ?? true;
+-    const request = { text: submittedText, submit, quietMs: Math.max(0, Math.min(10_000, Number(args.quietMs ?? 700) || 0)), timeoutMs: Math.max(1, Math.min(300_000, (Number(args.timeoutSeconds ?? 30) || 30) * 1000)), signal: args.signal };
+-    const operation = target === LOCAL_SESSION_ID ? session.startSend(request) : this.ctx.terminals.startSend(owner, record.sessionId, request);
+-    session.pendingSend = operation;
+-    let result;
+-    try { result = await operation.done; } finally { if (session.pendingSend === operation) session.pendingSend = undefined; session.outputBuffer.notify(); }
++    const quietMs = Math.max(0, Math.min(10_000, Number(args.quietMs ?? 700) || 0));
++    const timeoutMs = Math.max(1, Math.min(300_000, (Number(args.timeoutSeconds ?? 30) || 30) * 1000));
++    let result = await this.deliverText(owner, target, record, session, { text: submittedText, submit, quietMs, timeoutMs, signal: args.signal });
++    if (session instanceof AdoptedTerminalSession) await session.refresh();
++    let autoConfirmed = 0;
++    let autoMoreQuit = false;
++    let automationError;
++    if (result.waitReason !== "cancelled" && session.status().kind !== "exited" && session.outputBuffer.streamId === streamId) {
++      const automated = await this.runSendAutomation(owner, target, record, session, args, startOffset, streamId, quietMs, timeoutMs, result);
++      result = automated.result;
++      autoConfirmed = automated.autoConfirmed;
++      autoMoreQuit = automated.autoMoreQuit;
++      automationError = automated.automationError;
++    }
++    let autoSigint = false;
++    let autoSigintError;
++    if (result.waitReason !== "cancelled" && session.status().kind !== "exited" && session.outputBuffer.streamId === streamId) {
++      const observed = outputSince(session, startOffset, streamId);
++      if (!observed.replaced && hasParameterError(observed.text)) {
++        try {
++          await this.signal(owner, record.sessionId, "SIGINT");
++          autoSigint = true;
++          await waitForTerminal(PARAMETER_CLEAR_WAIT_MS, args.signal);
++          if (session instanceof AdoptedTerminalSession) await session.refresh();
++        } catch (error) {
++          if (args.signal?.aborted) throw error;
++          autoSigintError = summarizeError(error);
++        }
++      }
++    }
+     if (session instanceof AdoptedTerminalSession) await session.refresh();
+     const replaced = streamId !== session.outputBuffer.streamId;
+     const delta = {
+@@ -1175,10 +1329,24 @@ export class RemoteOpsState {
+       ...session.outputBuffer.readFrom(replaced ? undefined : startOffset, Math.max(2, Math.min(UI_SCROLLBACK_CHARS, Number(args.maxChars) || AGENT_OUTPUT_CHARS))),
+       ...(replaced ? { reset: true, truncated: true } : {}),
+     };
+-    if (owner) this.event(owner, target === LOCAL_SESSION_ID ? "local.send" : "ssh.send", { sessionId: record.sessionId, environment: delta.name, inputChars: submittedText.length, waitReason: result.waitReason });
++    if (owner) this.event(owner, target === LOCAL_SESSION_ID ? "local.send" : "ssh.send", { sessionId: record.sessionId, environment: delta.name, inputChars: submittedText.length, waitReason: result.waitReason, autoConfirmed, autoMoreQuit, autoSigint });
+     if (args.actor !== "manual") this.recordToolReceipt(owner, session, delta, "send");
+     const { text, ...metadata } = delta;
+-    return { ...metadata, environment: delta.name, submittedText, submit, output: text, waitReason: result.waitReason, sessionStatus: result.sessionStatus, ...(args.includeViewport ? { viewport: session.outputBuffer.tail(AGENT_OUTPUT_CHARS) } : {}) };
++    return {
++      ...metadata,
++      environment: delta.name,
++      submittedText,
++      submit,
++      output: autoSigint ? appendAutoSigintMarker(text) : text,
++      waitReason: result.waitReason,
++      sessionStatus: result.sessionStatus,
++      autoConfirmed,
++      autoMoreQuit,
++      autoSigint,
++      ...(autoSigintError ? { autoSigintError } : {}),
++      ...(automationError ? { automationError } : {}),
++      ...(args.includeViewport ? { viewport: session.outputBuffer.tail(AGENT_OUTPUT_CHARS) } : {}),
++    };
+   }
+ 
+   async input(owner, target, text, actor = "agent", streamId) {
+@@ -1326,7 +1494,7 @@ export function apply(ctx) {
+   ctx.systemPrompt.section({
+     name: "dsh-remote-ops",
+     order: 410,
+-    text: "Remote operations are provided by dsh-remote-ops. For self-contained noninteractive commands prefer remote_command_execute on an explicit existing connection or local-cmd for real exit status; it does not inherit interactive cwd or temporary variables. Use remote_environment_list to identify the exact terminal; reuse its sessionId. session=local-cmd is the shared local terminal visible in Remote Ops, NOT the Harness bash/pwsh terminal. For SSH open only when no suitable session exists. Send one complete command preserving spaces; raw input is for interactive keys/passwords. Send returns bounded new output, streamId and nextOffset. Continue with remote_terminal_read(session, cursor=nextOffset, streamId, waitMs=20000); drain hasMore before waiting. No new text, inferred_idle, timeout, and a running shell never prove a command completed or succeeded: completion=unknown. Observe actual results before dependent commands; never resend solely because of echo or silence. reset/truncated means history was replaced or dropped; do not assume missing output. Output is a raw terminal stream, not a rendered screen. For multiple SSH targets name them explicitly and operate sequentially. MCP provides knowledge, not execution evidence. Never invent credentials or connection success.",
++    text: "Remote operations are provided by dsh-remote-ops. For self-contained noninteractive commands prefer remote_command_execute on an explicit existing connection or local-cmd for real exit status; it does not inherit interactive cwd or temporary variables. Use remote_environment_list to identify the exact terminal; reuse its sessionId. session=local-cmd is the shared local terminal visible in Remote Ops, NOT the Harness bash/pwsh terminal. For SSH open only when no suitable session exists. Send one complete command preserving spaces; raw input is for interactive keys/passwords. Send returns bounded new output, streamId and nextOffset. Continue with remote_terminal_read(session, cursor=nextOffset, streamId, waitMs=20000); drain hasMore before waiting. No new text, inferred_idle, timeout, and a running shell never prove a command completed or succeeded: completion=unknown. Observe actual results before dependent commands; never resend solely because of echo or silence. reset/truncated means history was replaced or dropped; do not assume missing output. Output is a raw terminal stream, not a rendered screen. For multiple SSH targets name them explicitly and operate sequentially. MCP provides knowledge, not execution evidence. Never invent credentials or connection success. For device CLI prompts, remote_terminal_send autoConfirm=true answers a trailing (y/n) with y up to 3 times in the same call; confirmPattern overrides that expression. autoQuitMore=true sends q when the last output line contains --More--. Enable autoConfirm only for an operation the user already requested. A parameter-error screen with a caret and [name=?] hints is cleared with SIGINT before the tool returns. Output ending in [auto-sigint: command line cleared] is plugin metadata, not device text, and the command line is ready for a corrected command. These shortcuts do not prove completion.",
+   });
+ 
+   const owner = (exec) => exec.agent;
+@@ -1338,7 +1506,7 @@ export function apply(ctx) {
+   registerTool(ctx, { name: "remote_environment_group_delete", description: "Delete an empty saved SSH environment group.", parameters: { group: stringParam("Environment group", true) }, execute: async (args) => state.deleteGroup(args.group) });
+   registerTool(ctx, { name: "remote_environment_delete", description: "Delete a saved SSH environment and close its owner sessions.", parameters: { environment: stringParam("Environment id or name", true) }, execute: async (args, exec) => state.deleteEnvironment(owner(exec), args.environment) });
+   registerTool(ctx, { name: "remote_terminal_open", description: `Open a new SSH terminal for an environment. Each environment allows at most ${MAX_SESSIONS_PER_ENVIRONMENT} owner-scoped connections; use the returned sessionId for subsequent operations.`, parameters: { environment: stringParam("Environment id or name", true) }, execute: async (_args, exec) => { const record = await state.open(owner(exec), _args.environment); return { sessionId: record.sessionId, environment: record.environment.name, status: record.session.status(), viewport: record.session.output.slice(-64 * 1024) }; } });
+-  registerTool(ctx, { name: "remote_terminal_send", description: "Send exact text to a visible SSH session or local-cmd and wait for new output. Returns bounded delta and a resumable cursor, not old history. Silence/timeout is NOT proof of completion. Continue reading, never resend to poll.", parameters: { session: stringParam("Existing SSH session id or local-cmd"), environment: stringParam("Environment id or name only when opening a new connection"), text: stringParam("Input text; preserve every separator", true), submit: boolParam("Append Enter; defaults true"), quietMs: numberParam("Silence before yielding, not command completion; default 700 ms"), timeoutSeconds: numberParam("Wait limit in seconds; does not kill the command"), maxChars: numberParam("Output page size; default 16384, maximum 262144"), includeViewport: boolParam("Include recent history in addition to delta; default false") }, execute: async (args, exec) => state.send(owner(exec), args.session, { ...args, signal: exec.signal }) });
++  registerTool(ctx, { name: "remote_terminal_send", description: "Send exact text to a visible SSH session or local-cmd and wait for new output. Returns bounded delta and a resumable cursor, not old history. Silence/timeout is NOT proof of completion. Continue reading, never resend to poll. autoConfirm answers a trailing (y/n) with y up to 3 times in this same call; set it only for an operation the user already requested. confirmPattern replaces the default end-of-output (y/n) expression. autoQuitMore sends q when the last output line contains --More--. A parameter-error screen (caret under the command plus [name=?] hints) is always cleared with SIGINT; the output then ends with [auto-sigint: command line cleared], which is plugin metadata, not device text.", parameters: { session: stringParam("Existing SSH session id or local-cmd"), environment: stringParam("Environment id or name only when opening a new connection"), text: stringParam("Input text; preserve every separator", true), submit: boolParam("Append Enter; defaults true"), quietMs: numberParam("Silence before yielding, not command completion; default 700 ms"), timeoutSeconds: numberParam("Wait limit in seconds; does not kill the command"), maxChars: numberParam("Output page size; default 16384, maximum 262144"), includeViewport: boolParam("Include recent history in addition to delta; default false"), autoConfirm: boolParam("Answer a trailing confirmation prompt with y up to 3 times. Default false."), confirmPattern: stringParam("JavaScript regular expression anchored to the end of this send's output. Default matches (y/n)."), autoQuitMore: boolParam("Send q when the last output line contains --More--. Default false.") }, execute: async (args, exec) => state.send(owner(exec), args.session, { ...args, signal: exec.signal }) });
+   registerTool(ctx, { name: "remote_terminal_input", description: "Write raw terminal input immediately without waiting. Use for Tab completion, arrow keys, password prompts, interactive programs, or control characters.", parameters: { session: stringParam("Session id or environment id", true), text: stringParam("Raw UTF-8 terminal input", true) }, execute: async (args, exec) => state.input(owner(exec), args.session, args.text) });
+   registerTool(ctx, { name: "remote_terminal_read", description: "Read the same terminal stream shown in Remote Ops, including local-cmd. Omit cursor for recent history; then pass nextOffset as cursor and streamId to read only new output. waitMs long-polls without typing. hasMore requires another read; reset/truncated signals missing history. No output does not mean command completion. offset/count explicitly selects backward line history instead.", parameters: { session: stringParam("SSH session id or local-cmd", true), cursor: numberParam("Absolute nextOffset from the previous send/read"), streamId: stringParam("Output stream identity from the previous send/read"), waitMs: numberParam("Wait for new output, 0-25000 milliseconds"), maxChars: numberParam("Output page size; default 16384"), offset: numberParam("Newest-relative line offset for explicit history browsing"), count: numberParam("History line count") }, execute: async (args, exec) => state.readTerminal(owner(exec), args.session, { ...args, signal: exec.signal }) });
+   registerTool(ctx, { name: "remote_terminal_signal", description: "Interrupt the foreground process in a visible SSH terminal or local-cmd.", parameters: { session: stringParam("SSH session id or local-cmd", true), signal: stringParam("Signal such as SIGINT or SIGTERM", true) }, execute: async (args, exec) => state.signal(owner(exec), args.session, args.signal) });
+diff --git a/integrations/dsh-remote-ops/lib/version.js b/integrations/dsh-remote-ops/lib/version.js
+index 995ddff..1539399 100644
+--- a/integrations/dsh-remote-ops/lib/version.js
++++ b/integrations/dsh-remote-ops/lib/version.js
+@@ -1,3 +1,3 @@
+ export const PLUGIN_NAME = "dsh-remote-ops";
+-export const PLUGIN_VERSION = "0.2.23";
++export const PLUGIN_VERSION = "0.2.24";
+ export const RELEASE_REPOSITORY = "Ssshake1996/myterm";
+diff --git a/integrations/dsh-remote-ops/package-lock.json b/integrations/dsh-remote-ops/package-lock.json
+index 16597f2..a8af942 100644
+--- a/integrations/dsh-remote-ops/package-lock.json
++++ b/integrations/dsh-remote-ops/package-lock.json
+@@ -1,12 +1,12 @@
+ {
+   "name": "@dsh/remote-ops",
+-  "version": "0.2.23",
++  "version": "0.2.24",
+   "lockfileVersion": 3,
+   "requires": true,
+   "packages": {
+     "": {
+       "name": "@dsh/remote-ops",
+-      "version": "0.2.23",
++      "version": "0.2.24",
+       "dependencies": {
+         "ssh2": "1.17.0"
+       }
+diff --git a/integrations/dsh-remote-ops/package.json b/integrations/dsh-remote-ops/package.json
+index 9ad56f1..590d6cd 100644
+--- a/integrations/dsh-remote-ops/package.json
++++ b/integrations/dsh-remote-ops/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "@dsh/remote-ops",
+-  "version": "0.2.23",
++  "version": "0.2.24",
+   "private": false,
+   "type": "module",
+   "description": "DeepSeek Harness plugin for SSH environments, persistent terminals, SFTP and multi-target operations",
+diff --git a/integrations/dsh-remote-ops/test/contract.test.mjs b/integrations/dsh-remote-ops/test/contract.test.mjs
+index 594cf9e..3f4f968 100644
+--- a/integrations/dsh-remote-ops/test/contract.test.mjs
++++ b/integrations/dsh-remote-ops/test/contract.test.mjs
+@@ -102,6 +102,17 @@ test("environment, quick command, SFTP and update routes stay available", () =>
+   assert.doesNotMatch(client, /`\$\{item\.type === "d" \? "目录" : "文件"\}/);
+ });
+ 
++test("terminal send declares confirmation, pager, and parameter-error handling", () => {
++  assert.match(server, /autoConfirm: boolParam/);
++  assert.match(server, /confirmPattern: stringParam/);
++  assert.match(server, /autoQuitMore: boolParam/);
++  assert.match(server, /AUTO_CONFIRM_LIMIT = 3/);
++  assert.match(server, /MORE_QUIT_WAIT_MS = 300/);
++  assert.match(server, /PARAMETER_CLEAR_WAIT_MS = 500/);
++  assert.match(server, /\[auto-sigint: command line cleared\]/);
++  assert.match(server, /needsConfirm \? "y\\n" : "q"/);
++});
++
+ test("environment form hides internal ids and defaults blank names to the host", () => {
+   assert.doesNotMatch(client, /环境 ID/);
+   assert.match(client, /environmentForm\.name\.trim\(\) \|\| environmentForm\.host\.trim\(\)/);
+diff --git a/integrations/dsh-remote-ops/test/unit.test.mjs b/integrations/dsh-remote-ops/test/unit.test.mjs
+index 6ee3ad5..471ebcf 100644
+--- a/integrations/dsh-remote-ops/test/unit.test.mjs
++++ b/integrations/dsh-remote-ops/test/unit.test.mjs
+@@ -8,10 +8,17 @@ import { Client as SshClient } from "ssh2";
+ import {
+   RemoteOpsState,
+   TerminalOutputBuffer,
++  AUTO_CONFIRM_LIMIT,
++  AUTO_SIGINT_MARKER,
++  PARAMETER_CLEAR_WAIT_MS,
+   buildSshShellOptions,
++  compileConfirmPattern,
+   defaultPasswordRef,
++  hasParameterError,
+   MAX_SESSIONS_PER_ENVIRONMENT,
++  morePromptActive,
+   normalizeGroupName,
++  outputNeedsConfirm,
+   summarizeError,
+   toLosslessJson,
+   validateEnvironment,
+@@ -857,6 +864,170 @@ test("quick button HTTP dispatch works before Agent binding and reports stale st
+   assert.match(error.details, /TERMINAL_STREAM_CHANGED/);
+ });
+ 
++test("confirmation, pager, and parameter-error detectors match device CLI screens", () => {
++  assert.equal(outputNeedsConfirm("Have you read warning message carefully?(y/n)", null), true);
++  assert.equal(outputNeedsConfirm("Are you sure you really want to perform the operation?(y/n)  ", undefined), true);
++  assert.equal(outputNeedsConfirm("Are you sure you really want to perform the operation?(y/n)\r\n", ""), true);
++  assert.equal(outputNeedsConfirm("Sure?(y/n)\u001b[0m", null), true);
++  assert.equal(outputNeedsConfirm("choose (y/n) then continue\nadmin:/>", null), false);
++  assert.equal(outputNeedsConfirm("Sure?(Y/N)", null), false);
++  assert.equal(outputNeedsConfirm("proceed? [yes/no]", "\\[yes\\/no\\]\\s*$"), true);
++  assert.equal(morePromptActive("row\n--More--(Quit : q|Q)(Next Record : Enter)(Next Page : Space)(To End : G)"), true);
++  assert.equal(morePromptActive("--More--(Quit : q|Q)\nadmin:/>"), false);
++  const parameterError = [
++    "admin:/>show host_group general host_id=3",
++    "                                     ^",
++    "[host_group_id=?]           [host_group_name=?]  ...",
++  ].join("\r\n");
++  assert.equal(hasParameterError(parameterError), true);
++  assert.equal(hasParameterError("\n^\n[host_id=?]"), false);
++  assert.equal(hasParameterError("fresh result\nadmin:/>"), false);
++  assert.throws(() => compileConfirmPattern("("), { code: "CONFIRM_PATTERN_INVALID" });
++  assert.throws(() => compileConfirmPattern("a".repeat(201)), { code: "CONFIRM_PATTERN_INVALID" });
++  assert.throws(() => compileConfirmPattern("(a+)+"), { code: "CONFIRM_PATTERN_INVALID" });
++  assert.equal(AUTO_CONFIRM_LIMIT, 3);
++});
++
++test("autoConfirm answers trailing y/n prompts in one send and stops at three", async (t) => {
++  const { state, terminal } = await terminalFixture(t);
++  let replies = 0;
++  terminal.write = async (text) => {
++    terminal.writes.push(text);
++    if (text === "y\n") replies += 1;
++    const payload = text === "y\n" && replies >= 2
++      ? "\nCommand executed successfully.\r\nadmin:/>"
++      : "\nAre you sure you really want to perform the operation?(y/n) ";
++    terminal.output.emit("data", Buffer.from(payload));
++  };
++  const result = await state.send({ id: "agent" }, "local-cmd", { text: "delete host", autoConfirm: true, quietMs: 20, timeoutSeconds: 2 });
++  assert.deepEqual(terminal.writes, ["delete host\r", "y\n", "y\n"]);
++  assert.equal(result.autoConfirmed, 2);
++  assert.equal(result.autoMoreQuit, false);
++  assert.equal(result.autoSigint, false);
++  assert.match(result.output, /Command executed successfully/);
++  assert.equal(outputNeedsConfirm(result.output, null), false);
++
++  terminal.writes.length = 0;
++  replies = 0;
++  terminal.write = async (text) => {
++    terminal.writes.push(text);
++    terminal.output.emit("data", Buffer.from("\nHave you read warning message carefully?(y/n)"));
++  };
++  const limited = await state.send({ id: "agent" }, "local-cmd", { text: "delete host", autoConfirm: true, confirmPattern: "\\(y\\/n\\)\\s*$", quietMs: 20, timeoutSeconds: 2 });
++  assert.equal(limited.autoConfirmed, 3);
++  assert.deepEqual(terminal.writes, ["delete host\r", "y\n", "y\n", "y\n"]);
++  assert.match(limited.output, /\(y\/n\)$/);
++
++  terminal.writes.length = 0;
++  const ignored = await state.send({ id: "agent" }, "local-cmd", { text: "delete host", quietMs: 20, timeoutSeconds: 1 });
++  assert.deepEqual(terminal.writes, ["delete host\r"]);
++  assert.equal(ignored.autoConfirmed, 0);
++  assert.match(ignored.output, /\(y\/n\)$/);
++  await assert.rejects(
++    state.send({ id: "agent" }, "local-cmd", { text: "delete host", autoConfirm: true, confirmPattern: "(" }),
++    { code: "CONFIRM_PATTERN_INVALID" },
++  );
++  assert.deepEqual(terminal.writes, ["delete host\r"]);
++});
++
++test("autoQuitMore sends q only while the last line is still a pager", async (t) => {
++  const { state, terminal } = await terminalFixture(t);
++  terminal.write = async (text) => {
++    terminal.writes.push(text);
++    if (text === "q") terminal.output.emit("data", Buffer.from("\nHave you read warning message carefully?(y/n)"));
++    else if (text === "y\n") terminal.output.emit("data", Buffer.from("\nSuccess\nadmin:/>"));
++    else terminal.output.emit("data", Buffer.from("WARNING: You are about to delete\n--More--(Quit : q|Q)(Next Record : Enter)(Next Page : Space)(To End : G)"));
++  };
++  const result = await state.send({ id: "agent" }, "local-cmd", {
++    text: "delete host",
++    autoConfirm: true,
++    autoQuitMore: true,
++    quietMs: 20,
++    timeoutSeconds: 2,
++  });
++  assert.deepEqual(terminal.writes, ["delete host\r", "q", "y\n"]);
++  assert.equal(result.autoMoreQuit, true);
++  assert.equal(result.autoConfirmed, 1);
++  assert.match(result.output, /Success/);
++
++  terminal.writes.length = 0;
++  terminal.write = async (text) => {
++    terminal.writes.push(text);
++    terminal.output.emit("data", Buffer.from("--More--(Quit : q|Q)\nadmin:/>"));
++  };
++  const historical = await state.send({ id: "agent" }, "local-cmd", { text: "show", autoQuitMore: true, quietMs: 20, timeoutSeconds: 1 });
++  assert.deepEqual(terminal.writes, ["show\r"]);
++  assert.equal(historical.autoMoreQuit, false);
++});
++
++test("parameter-error screens are cleared with SIGINT before the send result returns", async (t) => {
++  const { state, terminal } = await terminalFixture(t);
++  const signals = [];
++  terminal.signalForeground = async (signal) => {
++    signals.push(signal);
++    terminal.output.emit("data", Buffer.from("\nadmin:/>"));
++    return 7;
++  };
++  terminal.write = async (text) => {
++    terminal.writes.push(text);
++    terminal.output.emit("data", Buffer.from([
++      "admin:/>show host_group general host_id=3",
++      "                                     ^",
++      "[host_group_id=?]           [host_group_name=?]  ...",
++      "",
++    ].join("\n")));
++  };
++  const startedAt = Date.now();
++  const result = await state.send({ id: "agent" }, "local-cmd", { text: "show host_group general host_id=3", quietMs: 20, timeoutSeconds: 2 });
++  assert.ok(Date.now() - startedAt >= PARAMETER_CLEAR_WAIT_MS - 20);
++  assert.deepEqual(signals, ["SIGINT"]);
++  assert.deepEqual(terminal.writes, ["show host_group general host_id=3\r"]);
++  assert.equal(result.autoSigint, true);
++  assert.match(result.output, /\[host_group_id=\?\]/);
++  assert.match(result.output, /admin:\/>/);
++  assert.match(result.output, new RegExp(`${AUTO_SIGINT_MARKER.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`));
++  assert.equal(state.localSession.outputBuffer.value.includes(AUTO_SIGINT_MARKER), false);
++  const continuation = await state.readTerminal({ id: "agent" }, "local-cmd", { cursor: result.nextOffset, streamId: result.streamId });
++  assert.equal(continuation.text, "");
++});
++
++test("SSH send automation answers y/n through the terminal backend and clears a polluted line", async (t) => {
++  const { state, ctx } = await terminalFixture(t);
++  const owner = { id: "agent" };
++  const environment = await state.saveEnvironment({ host: "10.0.0.1", username: "root", name: "存储" });
++  const remote = fakeRemoteSession();
++  const writes = [];
++  const signals = [];
++  remote.signal = async (signal) => {
++    signals.push(signal);
++    remote.outputBuffer.append("\nadmin:/>");
++    return { delivered: true, targetPgid: 1 };
++  };
++  state.sessions.set("pty-cli", { sessionId: "pty-cli", ownerId: owner.id, owner, environment, session: remote });
++  ctx.terminals.startSend = (_owner, id, request) => {
++    assert.equal(id, "pty-cli");
++    writes.push(request);
++    if (request.text === "delete lun") remote.outputBuffer.append("WARNING\nHave you read warning message carefully?(y/n)");
++    else if (request.text === "y\n") remote.outputBuffer.append("\nSuccess\nadmin:/>");
++    else remote.outputBuffer.append([
++      "admin:/>show host_group general host_id=3",
++      "                                     ^",
++      "[host_group_id=?]           [host_group_name=?]",
++    ].join("\n"));
++    return { done: Promise.resolve({ waitReason: "inferred_idle", sessionStatus: remote.status() }) };
++  };
++  const confirmed = await state.send(owner, "pty-cli", { text: "delete lun", autoConfirm: true });
++  assert.equal(confirmed.autoConfirmed, 1);
++  assert.equal(writes[1].text, "y\n");
++  assert.equal(writes[1].submit, false);
++  assert.match(confirmed.output, /Success/);
++  const polluted = await state.send(owner, "pty-cli", { text: "show host_group general host_id=3" });
++  assert.deepEqual(signals, ["SIGINT"]);
++  assert.equal(polluted.autoSigint, true);
++  assert.match(polluted.output, /\[auto-sigint: command line cleared\]$/);
++  assert.equal(remote.outputBuffer.value.includes(AUTO_SIGINT_MARKER), false);
++});
++
+ test("environment and quick-command persistence survives a state reload", async () => {
+   const root = await mkdtemp(join(tmpdir(), "dsh-remote-ops-test-"));
+   const previousHome = process.env.DSH_HOME;
